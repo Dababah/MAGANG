@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PEKERJA
+  ATASAN
+  ADMIN_TI
+  SUPER_ADMIN
+}
+
+enum StatementStatus {
+  DRAFT
+  DIAJUKAN
+  DISETUJUI_ATASAN
+  DISETUJUI_TI
+  DITOLAK
+}
+
+enum Decision {
+  SETUJU
+  TOLAK
+}
+
+model BusinessArea {
+  id        Int        @id @default(autoincrement())
+  kode      String     @unique @db.VarChar(20)
+  nama      String     @db.VarChar(150)
+  aktif     Boolean    @default(true)
+  employees Employee[]
+
+  @@map("business_areas")
+}
+
+model Employee {
+  id              Int          @id @default(autoincrement())
+  nipp            String       @unique @db.VarChar(30)
+  namaLengkap     String       @map("nama_lengkap") @db.VarChar(150)
+  jabatan         String       @db.VarChar(150)
+  tempatKedudukan String       @map("tempat_kedudukan") @db.VarChar(150)
+  businessAreaId  Int          @map("business_area_id")
+  atasanId        Int?         @map("atasan_id")
+  aktif           Boolean      @default(true)
+  businessArea    BusinessArea @relation(fields: [businessAreaId], references: [id], onDelete: Restrict)
+  atasan          Employee?    @relation("Atasan", fields: [atasanId], references: [id], onDelete: Restrict)
+  bawahan         Employee[]   @relation("Atasan")
+  user            User?
+  statements      Statement[]
+  approvals       Approval[]
+
+  @@index([atasanId])
+  @@index([businessAreaId])
+  @@map("employees")
+}
+
+model User {
+  id             Int        @id @default(autoincrement())
+  employeeId     Int        @unique @map("employee_id")
+  email          String?    @unique @db.VarChar(190)
+  passwordHash   String     @map("password_hash") @db.VarChar(100)
+  role           Role       @default(PEKERJA)
+  aktif          Boolean    @default(true)
+  failedAttempts Int        @default(0) @map("failed_attempts")
+  lockedUntil    DateTime?  @map("locked_until")
+  createdAt      DateTime   @default(now()) @map("dibuat_pada")
+  employee       Employee   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  sessions       Session[]
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @db.VarChar(64)
+  userId    Int      @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("dibuat_pada")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model FormVersion {
+  id            Int         @id @default(autoincrement())
+  nomorDokumen  String      @map("nomor_dokumen") @db.VarChar(60)
+  versi         String      @db.VarChar(20)
+  tanggalTerbit DateTime    @map("tanggal_terbit") @db.Date
+  teksKetentuan String      @map("teks_ketentuan") @db.Text
+  aktif         Boolean     @default(true)
+  statements    Statement[]
+
+  @@map("form_versions")
+}
+
+model Statement {
+  id              Int             @id @default(autoincrement())
+  noRef           String?         @unique @map("no_ref") @db.VarChar(40)
+  tanggal         DateTime        @db.Date
+  pekerjaId       Int             @map("pekerja_id")
+  formVersionId   Int             @map("form_version_id")
+  namaLengkap     String          @map("nama_lengkap") @db.VarChar(150)
+  nipp            String          @db.VarChar(30)
+  jabatan         String          @db.VarChar(150)
+  tempatKedudukan String          @map("tempat_kedudukan") @db.VarChar(150)
+  businessArea    String          @map("business_area") @db.VarChar(150)
+  alasan          String          @db.Text
+  status          StatementStatus @default(DRAFT)
+  submittedAt     DateTime?       @map("diajukan_pada")
+  createdAt       DateTime        @default(now()) @map("dibuat_pada")
+  updatedAt       DateTime        @updatedAt @map("diubah_pada")
+  pekerja         Employee        @relation(fields: [pekerjaId], references: [id], onDelete: Restrict)
+  formVersion     FormVersion     @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
+  approvals       Approval[]
+
+  @@index([pekerjaId, status])
+  @@index([tanggal])
+  @@index([status])
+  @@map("statements")
+}
+
+model Approval {
+  id          Int       @id @default(autoincrement())
+  statementId Int       @map("statement_id")
+  tahap       Int
+  approverId  Int       @map("approver_id")
+  keputusan   Decision
+  catatan     String?   @db.Text
+  waktu       DateTime  @default(now())
+  statement   Statement @relation(fields: [statementId], references: [id], onDelete: Restrict)
+  approver    Employee  @relation(fields: [approverId], references: [id], onDelete: Restrict)
+
+  @@index([statementId])
+  @@map("approvals")
+}
+
+model AuditLog {
+  id          BigInt   @id @default(autoincrement())
+  userId      Int?     @map("user_id")
+  aksi        String   @db.VarChar(60)
+  entitas     String   @db.VarChar(60)
+  entitasId   String?  @map("entitas_id") @db.VarChar(60)
+  dataSebelum Json?    @map("data_sebelum")
+  dataSesudah Json?    @map("data_sesudah")
+  ip          String?  @db.VarChar(64)
+  waktu       DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entitas, entitasId])
+  @@index([waktu])
+  @@map("audit_logs")
+}
+
+model RefCounter {
+  tahun          Int
+  bulan          Int
+  urutanTerakhir Int @default(0) @map("urutan_terakhir")
+
+  @@id([tahun, bulan])
+  @@map("ref_counters")
+}
