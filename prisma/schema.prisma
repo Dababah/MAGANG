@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -62,7 +63,7 @@ model User {
   id             Int        @id @default(autoincrement())
   employeeId     Int        @unique @map("employee_id")
   email          String?    @unique @db.VarChar(190)
-  passwordHash   String     @map("password_hash") @db.VarChar(100)
+  passwordHash   String     @map("password_hash") @db.VarChar(200)
   role           Role       @default(PEKERJA)
   aktif          Boolean    @default(true)
   failedAttempts Int        @default(0) @map("failed_attempts")

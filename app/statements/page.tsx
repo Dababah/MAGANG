@@ -6,6 +6,8 @@ import {
   BackToDashboard,
 } from "@/components/statement-list";
 
+export const instant = false;
+
 export default async function StatementsPage() {
   const user = await requireUser();
   const scope =

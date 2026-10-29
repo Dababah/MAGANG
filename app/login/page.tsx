@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -42,13 +43,13 @@ export default function LoginPage() {
   return (
     <main className="login-page">
       <div className="login-visual">
-        <a className="brand login-brand" href="/">
+        <Link className="brand login-brand" href="/">
           <span className="brand-mark">K</span>
           <span className="brand-copy">
             <strong>pernyataan</strong>
             <small>KERETA API INDONESIA</small>
           </span>
-        </a>
+        </Link>
         <div className="login-visual-copy">
           <div className="eyebrow">
             <span /> RUANG KERJA DIGITAL

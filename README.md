@@ -34,3 +34,14 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Local Setup
+
+See [docs/PANDUAN-LOKAL.md](docs/PANDUAN-LOKAL.md) for local development and
+demo-account instructions. Do not use demo credentials in production.
+
+## Deployment
+
+See [docs/DEPLOY-VERCEL-SUPABASE.md](docs/DEPLOY-VERCEL-SUPABASE.md) for
+deployment instructions. The application uses Prisma with Supabase PostgreSQL;
+it does not use Supabase Auth or the Supabase browser client.

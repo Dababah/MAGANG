@@ -7,6 +7,8 @@ import {
   BackToDashboard,
 } from "@/components/statement-list";
 
+export const instant = false;
+
 export default async function ApprovalsPage() {
   const user = await requireUser();
   const scope: Prisma.StatementWhereInput =

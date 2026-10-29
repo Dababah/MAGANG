@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -38,22 +39,22 @@ export default function NewStatementPage() {
   return (
     <main className="form-page">
       <header className="form-page-top">
-        <a className="brand" href="/">
+        <Link className="brand" href="/">
           <span className="brand-mark">K</span>
           <span className="brand-copy">
             <strong>pernyataan</strong>
             <small>KERETA API INDONESIA</small>
           </span>
-        </a>
-        <a className="form-back" href="/statements">
+        </Link>
+        <Link className="form-back" href="/statements">
           Kembali ke pernyataan
-        </a>
+        </Link>
       </header>
       <div className="form-page-content">
         <div className="form-breadcrumb">
-          <a href="/">Ringkasan</a>
+          <Link href="/">Ringkasan</Link>
           <span>/</span>
-          <a href="/statements">Pernyataan saya</a>
+          <Link href="/statements">Pernyataan saya</Link>
           <span>/</span>
           <strong>Pengajuan baru</strong>
         </div>
@@ -115,7 +116,7 @@ export default function NewStatementPage() {
             </p>
           </div>
           <div className="form-actions">
-            <a href="/statements">Batal</a>
+            <Link href="/statements">Batal</Link>
             <button className="primary-button" disabled={loading} type="submit">
               {loading ? "Mengirim..." : "Kirim pengajuan"}
               <span aria-hidden="true">→</span>

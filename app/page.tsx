@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 
@@ -92,6 +93,8 @@ function Icon({ name }: { name: string }) {
   );
 }
 
+export const instant = false;
+
 export default async function Home() {
   const user = await requireUser();
   const isAdmin = user.role === "ADMIN_TI" || user.role === "SUPER_ADMIN";
@@ -181,13 +184,13 @@ export default async function Home() {
   return (
     <div className="workspace">
       <aside className="sidebar">
-        <a className="brand" href="/" aria-label="Pernyataan KAI, beranda">
+        <Link className="brand" href="/" aria-label="Pernyataan KAI, beranda">
           <span className="brand-mark">K</span>
           <span className="brand-copy">
             <strong>pernyataan</strong>
             <small>KERETA API INDONESIA</small>
           </span>
-        </a>
+        </Link>
         <div className="workspace-label">WORKSPACE</div>
         <div className="area-switcher">
           <span className="area-dot" />

@@ -32,6 +32,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# Internal source documents are not application assets
+*.docx
 
 # vercel
 .vercel
