@@ -6,7 +6,7 @@ Dokumen ini menjelaskan tujuan produk, perilaku aplikasi yang tersedia, struktur
 
 Portal Pernyataan KAI adalah aplikasi internal untuk mengelola pengajuan pernyataan pekerja dan persetujuan berjenjang. Pekerja mengisi keterangan, atasan langsung meninjau pengajuan, lalu Admin TI menyelesaikan tahap persetujuan berikutnya. Pengajuan yang disetujui di tahap TI atau ditolak masuk ke arsip.
 
-Produk menggunakan Next.js App Router untuk antarmuka dan API, Prisma ORM untuk akses PostgreSQL (Supabase untuk hosting online), serta sistem sesi berbasis cookie. Akun dibuat dan dikelola di database, bukan melalui pendaftaran mandiri.
+Produk menggunakan Next.js App Router untuk antarmuka dan API, Prisma ORM untuk akses MySQL, serta sistem sesi berbasis cookie. Akun dibuat dan dikelola di database, bukan melalui pendaftaran mandiri.
 
 ### Tujuan
 
@@ -190,7 +190,7 @@ Dalam produk siap pakai, tombol logout yang terlihat sebaiknya ditambahkan dan m
 
 ## 7. Data dan Model Database
 
-Database PostgreSQL didefinisikan dalam `prisma/schema.prisma`. Pada deployment Supabase, Prisma memakai `DATABASE_URL` pooler untuk runtime aplikasi dan `DIRECT_URL` untuk operasi schema.
+Database MySQL didefinisikan dalam `prisma/schema.prisma` dan diakses server-side melalui Prisma Client.
 
 | Model          | Tanggung jawab                                                                                                 |
 | -------------- | -------------------------------------------------------------------------------------------------------------- |
@@ -210,7 +210,7 @@ Relasi penting: setiap pekerja mempunyai satu user opsional; pekerja dapat memil
 
 - Next.js 16 App Router dan React 19: halaman server/client serta route handler API.
 - TypeScript: pemeriksaan tipe aplikasi.
-- Prisma 6 dan PostgreSQL: skema serta akses data. Database online di-host pada Supabase.
+- Prisma 6 dan MySQL: skema serta akses data. Database dapat berjalan lokal atau melalui penyedia MySQL cloud.
 - Zod: validasi input request.
 - Node.js `crypto` (`scrypt`, `randomBytes`, SHA-256): password dan sesi.
 - ESLint 9: lint.
@@ -235,7 +235,7 @@ Folder penting:
 ### Prasyarat
 
 - Node.js versi yang kompatibel dengan Next.js 16 dan npm.
-- Database PostgreSQL yang dapat dijangkau. Untuk uji online, gunakan project Supabase; untuk pengembangan offline, gunakan PostgreSQL lokal.
+- Server MySQL yang dapat dijangkau. Untuk uji online, gunakan penyedia MySQL cloud; untuk pengembangan offline, gunakan MySQL lokal.
 - PowerShell di Windows (contoh perintah di bawah mengikuti workspace ini).
 
 ### Instalasi dan konfigurasi
@@ -258,11 +258,10 @@ Folder penting:
    Copy-Item .env.example .env
    ```
 
-4. Edit `DATABASE_URL` dan `DIRECT_URL` dalam `.env` agar cocok dengan PostgreSQL yang digunakan. Untuk Supabase, ikuti [panduan deploy](docs/DEPLOY-VERCEL-SUPABASE.md). Jangan commit URL asli:
+4. Edit `DATABASE_URL` dalam `.env` agar cocok dengan MySQL yang digunakan. Untuk deployment Vercel, ikuti [panduan deploy](docs/DEPLOY-VERCEL-MYSQL.md). Jangan commit URL asli:
 
    ```dotenv
-   DATABASE_URL="postgresql://USER:PASSWORD@HOST:6543/postgres?pgbouncer=true"
-   DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/postgres"
+   DATABASE_URL="mysql://USER:PASSWORD@HOST:3306/DATABASE_NAME"
    NODE_ENV="development"
    ```
 
@@ -276,7 +275,7 @@ Folder penting:
    npm run db:seed-demo
    ```
 
-   `db push` menerapkan model Prisma ke database tetapi tidak membuat data bisnis. Seed demo menyiapkan business area, empat pekerja/user, hubungan pekerja-at​​asan, dan satu versi formulir aktif; seed hanya bisa digunakan dengan database localhost dan memerlukan `DEMO_PASSWORD` yang Anda pilih. Jangan arahkan seed ke Supabase.
+   `db push` menerapkan model Prisma ke database tetapi tidak membuat data bisnis. Seed demo menyiapkan business area, empat pekerja/user, hubungan pekerja-at​​asan, dan satu versi formulir aktif; seed hanya bisa digunakan dengan database localhost dan memerlukan `DEMO_PASSWORD` yang Anda pilih. Jangan arahkan seed ke database remote.
 
 6. Jalankan server pengembangan:
 
@@ -309,7 +308,7 @@ Jangan gunakan akun demo sebagai akun produksi. Seed memperbarui akun demo yang 
 
 ### A. Pastikan aplikasi siap
 
-1. Pastikan PostgreSQL berjalan atau Supabase dapat dijangkau, serta `.env` menunjuk ke database yang benar.
+1. Pastikan MySQL berjalan atau database cloud dapat dijangkau, serta `.env` menunjuk ke database yang benar.
 2. Jalankan `npx prisma db push --schema prisma/schema.prisma`, `npm run db:generate`, lalu `npm run db:seed-demo`.
 3. Jalankan `npm run dev` dan buka `/login`.
 
@@ -420,7 +419,7 @@ Kirim `POST /api/approvals/{id}` dengan `Content-Type: application/json` dan coo
 | `npx prisma db push --schema prisma/schema.prisma` | Menyelaraskan schema ke database lokal.                    |
 | `npm run db:seed-demo`                             | Menyiapkan akun dan data demo lokal dengan guard keamanan. |
 
-Pemeriksaan build/lint/typecheck tidak menggantikan pengujian integrasi PostgreSQL atau pengujian browser terhadap role dan alur sesi.
+Pemeriksaan build/lint/typecheck tidak menggantikan pengujian integrasi MySQL atau pengujian browser terhadap role dan alur sesi.
 
 ## 14. Pemecahan Masalah
 
@@ -433,7 +432,7 @@ Pemeriksaan build/lint/typecheck tidak menggantikan pengujian integrasi PostgreS
 
 ### Error koneksi/database
 
-- Pastikan PostgreSQL hidup, database telah dibuat, serta `DATABASE_URL` dan `DIRECT_URL` tepat.
+- Pastikan MySQL hidup, database telah dibuat, dan `DATABASE_URL` tepat.
 - Jalankan `npx prisma db push --schema prisma/schema.prisma` lalu `npm run db:generate`.
 - Jangan meletakkan tanda kutip yang tidak semestinya atau password database yang belum di-URL-encode pada URL koneksi.
 

@@ -19,7 +19,7 @@ Akun pekerja sudah dihubungkan sebagai bawahan dari akun atasan. Seed juga menyi
 
 ## Menyiapkan Aplikasi
 
-Prasyarat: Node.js/npm dan database PostgreSQL. Database Supabase dapat dipakai untuk pengujian online; untuk pengembangan offline, gunakan PostgreSQL lokal.
+Prasyarat: Node.js/npm dan server MySQL lokal. Pengujian online bukan keharusan untuk pengembangan dan laporan magang. Jika nanti ingin deploy, gunakan penyedia MySQL cloud; Supabase Database tidak kompatibel karena menggunakan PostgreSQL.
 
 1. Dari PowerShell, masuk ke folder proyek:
 
@@ -33,9 +33,9 @@ Prasyarat: Node.js/npm dan database PostgreSQL. Database Supabase dapat dipakai 
    Copy-Item .env.example .env
    ```
 
-   Sesuaikan `DATABASE_URL` dan `DIRECT_URL` di `.env` dengan connection string PostgreSQL Anda. Untuk Supabase, ikuti `docs/DEPLOY-VERCEL-SUPABASE.md`. Jangan membagikan isi `.env`.
+   Sesuaikan `DATABASE_URL` di `.env` dengan connection string MySQL Anda. Untuk deployment online, ikuti `docs/DEPLOY-VERCEL-MYSQL.md`. Jangan membagikan isi `.env`.
 
-3. Pastikan PostgreSQL dapat dijangkau, lalu buat tabel dari skema Prisma dan siapkan Prisma Client:
+3. Pastikan MySQL dapat dijangkau, lalu buat tabel dari skema Prisma dan siapkan Prisma Client:
 
    ```powershell
    npx prisma db push --schema prisma/schema.prisma
@@ -43,7 +43,7 @@ Prasyarat: Node.js/npm dan database PostgreSQL. Database Supabase dapat dipakai 
    npm run db:seed-demo
    ```
 
-   `db push` menerapkan skema. `db:seed-demo` hanya berjalan jika hostname database adalah localhost dan `NODE_ENV` bukan production; script ini sengaja tidak dapat menulis akun demo ke Supabase remote. Sebelum seed, atur password demo di PowerShell:
+   `db push` menerapkan skema. `db:seed-demo` hanya berjalan jika hostname database adalah localhost dan `NODE_ENV` bukan production; script ini sengaja tidak dapat menulis akun demo ke database remote. Sebelum seed, atur password demo di PowerShell:
 
    ```powershell
    $env:DEMO_PASSWORD = "PilihPasswordLokalYangKuat!"
@@ -63,7 +63,7 @@ Prasyarat: Node.js/npm dan database PostgreSQL. Database Supabase dapat dipakai 
 
 - **NIPP atau kata sandi tidak sesuai:** jalankan `npm run db:seed-demo` pada database lokal, lalu gunakan NIPP dan kata sandi di tabel akun demo.
 - **Akun terkunci sementara:** lima kali percobaan kata sandi salah mengunci akun selama 15 menit. Tunggu, lalu coba lagi atau hubungi administrator.
-- **Halaman menampilkan error database:** pastikan PostgreSQL berjalan, connection string benar, lalu jalankan kembali `npx prisma db push --schema prisma/schema.prisma` dan `npm run db:generate`.
+- **Halaman menampilkan error database:** pastikan MySQL berjalan, connection string benar, lalu jalankan kembali `npx prisma db push --schema prisma/schema.prisma` dan `npm run db:generate`.
 - **Pengajuan baru gagal karena data belum tersedia:** akun perlu memiliki data pekerja dan business area; pengajuan juga memerlukan formulir aktif (`FormVersion`). `db push` hanya membuat struktur tabel.
 - Tautan **Lupa kata sandi?** dan **Hubungi administrator wilayah** mengarah ke email `admin@kai.id`; pastikan alamat itu sesuai dengan lingkungan pengujian Anda.
 

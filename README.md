@@ -42,6 +42,6 @@ demo-account instructions. Do not use demo credentials in production.
 
 ## Deployment
 
-See [docs/DEPLOY-VERCEL-SUPABASE.md](docs/DEPLOY-VERCEL-SUPABASE.md) for
-deployment instructions. The application uses Prisma with Supabase PostgreSQL;
-it does not use Supabase Auth or the Supabase browser client.
+For optional online deployment later, see
+[docs/DEPLOY-VERCEL-MYSQL.md](docs/DEPLOY-VERCEL-MYSQL.md). The application
+uses MySQL through Prisma; local MySQL is sufficient for current development.
