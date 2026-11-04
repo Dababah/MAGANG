@@ -2,25 +2,12 @@ import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { getJakartaDateParts } from "@/lib/jakarta-time";
+import { getStatementVisibilityScope } from "@/lib/auth/scope";
 import {
   createStatementSchema,
   statementStatusSchema,
 } from "@/lib/validators/statement";
-
-function visibleStatements(
-  user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>,
-) {
-  if (user.role === "PEKERJA") return { pekerjaId: user.employeeId };
-  if (user.role === "ATASAN") {
-    return {
-      OR: [
-        { pekerjaId: user.employeeId },
-        { pekerja: { atasanId: user.employeeId } },
-      ],
-    };
-  }
-  return {};
-}
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -44,7 +31,7 @@ export async function GET(request: Request) {
 
   const statements = await prisma.statement.findMany({
     where: {
-      ...visibleStatements(user),
+      ...getStatementVisibilityScope(user),
       ...(parsedStatus?.success ? { status: parsedStatus.data } : {}),
     },
     include: {
@@ -76,6 +63,12 @@ export async function POST(request: Request) {
       { status: 403 },
     );
   }
+  if (!user.employee.aktif || !user.employee.businessArea.aktif) {
+    return NextResponse.json(
+      { error: "Data pekerja atau wilayah kerja tidak aktif" },
+      { status: 409 },
+    );
+  }
 
   const parsed = createStatementSchema.safeParse(
     await request.json().catch(() => null),
@@ -94,10 +87,15 @@ export async function POST(request: Request) {
     include: { businessArea: true },
   });
   const formVersion = await prisma.formVersion.findFirst({
-    where: { aktif: true },
+    where: { id: parsed.data.formVersionId, aktif: true },
     orderBy: { tanggalTerbit: "desc" },
   });
-  if (!employee || !formVersion) {
+  if (
+    !employee ||
+    !employee.aktif ||
+    !employee.businessArea.aktif ||
+    !formVersion
+  ) {
     return NextResponse.json(
       { error: "Data pekerja atau formulir aktif belum tersedia" },
       { status: 409 },
@@ -105,8 +103,7 @@ export async function POST(request: Request) {
   }
 
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  const { year, month, day } = getJakartaDateParts(now);
   const statement = await prisma.$transaction(
     async (transaction: Prisma.TransactionClient) => {
       const counter = await transaction.refCounter.upsert({
@@ -118,7 +115,7 @@ export async function POST(request: Request) {
       const created = await transaction.statement.create({
         data: {
           noRef,
-          tanggal: new Date(Date.UTC(year, month - 1, now.getDate())),
+          tanggal: new Date(Date.UTC(year, month - 1, day)),
           pekerjaId: employee.id,
           formVersionId: formVersion.id,
           namaLengkap: employee.namaLengkap,

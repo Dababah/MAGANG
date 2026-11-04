@@ -1,14 +1,14 @@
+import type { Prisma } from "@prisma/client";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { LogoutButton } from "@/components/logout-button";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
-
-const navigation = [
-  { label: "Ringkasan", icon: "grid", active: true, href: "/" },
-  { label: "Pernyataan saya", icon: "file", href: "/statements" },
-  { label: "Persetujuan", icon: "check", count: "3", href: "/approvals" },
-  { label: "Arsip", icon: "archive", href: "/archive" },
-];
+import { formatJakartaDate, getJakartaMonthStart } from "@/lib/jakarta-time";
+import {
+  getStatementVisibilityScope,
+  getApprovalQueueScope,
+} from "@/lib/auth/scope";
 
 function Icon({ name }: { name: string }) {
   const paths: Record<string, ReactNode> = {
@@ -98,28 +98,9 @@ export const instant = false;
 export default async function Home() {
   const user = await requireUser();
   const isAdmin = user.role === "ADMIN_TI" || user.role === "SUPER_ADMIN";
-  const statementScope =
-    user.role === "PEKERJA"
-      ? { pekerjaId: user.employeeId }
-      : user.role === "ATASAN"
-        ? {
-            OR: [
-              { pekerjaId: user.employeeId },
-              { pekerja: { atasanId: user.employeeId } },
-            ],
-          }
-        : {};
-  const pendingScope =
-    user.role === "ATASAN"
-      ? { pekerja: { atasanId: user.employeeId }, status: "DIAJUKAN" as const }
-      : user.role === "ADMIN_TI" || user.role === "SUPER_ADMIN"
-        ? { status: "DISETUJUI_ATASAN" as const }
-        : { id: -1 };
-  const monthStart = new Date(
-    new Date().getFullYear(),
-    new Date().getMonth(),
-    1,
-  );
+  const statementScope = getStatementVisibilityScope(user);
+  const pendingScope = getApprovalQueueScope(user);
+  const monthStart = getJakartaMonthStart(new Date());
 
   const [
     totalStatements,
@@ -131,10 +112,7 @@ export default async function Home() {
   ] = await Promise.all([
     prisma.statement.count({ where: statementScope }),
     prisma.statement.count({
-      where: {
-        ...statementScope,
-        status: { in: ["DIAJUKAN", "DISETUJUI_ATASAN"] },
-      },
+      where: pendingScope,
     }),
     prisma.statement.count({
       where: {
@@ -145,7 +123,12 @@ export default async function Home() {
     }),
     isAdmin
       ? prisma.employee.count({ where: { aktif: true } })
-      : Promise.resolve(0),
+      : prisma.employee.count({
+          where: {
+            aktif: true,
+            businessAreaId: user.employee.businessAreaId,
+          },
+        }),
     prisma.statement.findMany({
       where: statementScope,
       include: {
@@ -166,6 +149,23 @@ export default async function Home() {
       take: 3,
     }),
   ]);
+  const navigation = [
+    { label: "Ringkasan", icon: "grid", active: true, href: "/" },
+    { label: "Pernyataan saya", icon: "file", href: "/statements" },
+    {
+      label: "Persetujuan",
+      icon: "check",
+      count: pendingCount ? String(pendingCount) : undefined,
+      href: "/approvals",
+    },
+    { label: "Arsip", icon: "archive", href: "/archive" },
+    ...(user.role === "SUPER_ADMIN"
+      ? [
+          { label: "Data pegawai", icon: "users", href: "/admin/employees" },
+          { label: "Audit aktivitas", icon: "trend", href: "/admin/audit" },
+        ]
+      : []),
+  ];
   const statusText: Record<string, string> = {
     DRAFT: "Draf",
     DIAJUKAN: "Menunggu persetujuan",
@@ -229,6 +229,7 @@ export default async function Home() {
             </span>
             <span className="profile-more">···</span>
           </button>
+          <LogoutButton />
         </div>
       </aside>
 
@@ -255,9 +256,7 @@ export default async function Home() {
             </button>
             <span className="topbar-divider" />
             <span className="today">
-              {new Intl.DateTimeFormat("id-ID", { dateStyle: "full" }).format(
-                new Date(),
-              )}
+              {formatJakartaDate(new Date(), { dateStyle: "full" })}
             </span>
           </div>
         </header>
@@ -327,13 +326,15 @@ export default async function Home() {
             </article>
             <article className="metric-card">
               <div className="metric-top">
-                <span>{isAdmin ? "Pekerja terdaftar" : "Wilayah kerja"}</span>
+                <span>
+                  {isAdmin ? "Pekerja terdaftar" : "Pekerja di wilayah"}
+                </span>
                 <span className="metric-icon coral">
                   <Icon name="users" />
                 </span>
               </div>
               <div className="metric-value">
-                {isAdmin ? employeesCount.toLocaleString("id-ID") : "1"}
+                {employeesCount.toLocaleString("id-ID")}
               </div>
               <div className="metric-foot">
                 <span className="metric-note">
@@ -394,7 +395,7 @@ export default async function Home() {
                           </span>
                         </td>
                         <td className="time-cell">
-                          {item.updatedAt.toLocaleDateString("id-ID", {
+                          {formatJakartaDate(item.updatedAt, {
                             day: "numeric",
                             month: "short",
                           })}
@@ -476,7 +477,9 @@ export default async function Home() {
                 <div className="notice-symbol">i</div>
                 <div>
                   <strong>Formulir versi terbaru</strong>
-                  <p>Gunakan formulir versi 2.4 untuk setiap pengajuan baru.</p>
+                  <p>
+                    Gunakan versi formulir aktif untuk setiap pengajuan baru.
+                  </p>
                   <a href="/statements/new">
                     Lihat ketentuan <Icon name="arrow" />
                   </a>

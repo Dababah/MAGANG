@@ -6,6 +6,7 @@ export const createStatementSchema = z.object({
     .trim()
     .min(10, "Alasan minimal 10 karakter")
     .max(5000, "Alasan maksimal 5.000 karakter"),
+  formVersionId: z.number().int().positive(),
 });
 
 export const statementStatusSchema = z.enum([

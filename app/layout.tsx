@@ -14,8 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pernyataan KAI | Portal Pekerja",
-  description: "Portal pengelolaan pernyataan pekerja PT Kereta Api Indonesia.",
+  title: "Portal Pernyataan Pekerja - PT Kereta Api Indonesia",
+  description:
+    "Sistem manajemen dan persetujuan pernyataan pekerja PT Kereta Api Indonesia (Persero).",
+  keywords: "KAI, Pernyataan, Portal Pekerja, Persetujuan",
+  authors: [{ name: "PT Kereta Api Indonesia" }],
+  viewport: "width=device-width, initial-scale=1",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
+import { formatJakartaDate } from "@/lib/jakarta-time";
 
 type StatementRecord = Prisma.StatementGetPayload<{
   include: {
@@ -48,7 +49,8 @@ export function StatementList({
             <th>NOMOR REFERENSI</th>
             <th>ALASAN</th>
             <th>STATUS</th>
-            <th>TANGGAL</th>
+            <th>TANGGAL DOKUMEN</th>
+            <th>AKSI</th>
           </tr>
         </thead>
         <tbody>
@@ -83,11 +85,21 @@ export function StatementList({
                 </span>
               </td>
               <td className="time-cell">
-                {statement.updatedAt.toLocaleDateString("id-ID", {
+                {formatJakartaDate(statement.tanggal, {
                   day: "numeric",
                   month: "short",
                   year: "numeric",
                 })}
+              </td>
+              <td>
+                {statement.status !== "DRAFT" && statement.noRef && (
+                  <a
+                    className="statement-download"
+                    href={`/api/statements/${statement.id}/pdf`}
+                    aria-label={`Unduh PDF ${statement.noRef}`}>
+                    Unduh PDF
+                  </a>
+                )}
               </td>
             </tr>
           ))}

@@ -38,7 +38,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ## Local Setup
 
 See [docs/PANDUAN-LOKAL.md](docs/PANDUAN-LOKAL.md) for local development and
-demo-account instructions. Do not use demo credentials in production.
+instructions for preparing authorized account and employee data.
 
 ## Deployment
 

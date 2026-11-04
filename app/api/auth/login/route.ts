@@ -30,7 +30,10 @@ export async function POST(request: Request) {
   }
   if (user.lockedUntil && user.lockedUntil > now) {
     return NextResponse.json(
-      { error: "Akun terkunci sementara. Coba lagi beberapa menit." },
+      {
+        error:
+          "Akun Anda sementara terkunci karena terlalu banyak percobaan login yang gagal.",
+      },
       { status: 423 },
     );
   }
@@ -40,16 +43,30 @@ export async function POST(request: Request) {
     user.passwordHash,
   );
   if (!validPassword) {
-    const failedAttempts = user.failedAttempts + 1;
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        failedAttempts: failedAttempts >= MAX_ATTEMPTS ? 0 : failedAttempts,
-        lockedUntil:
-          failedAttempts >= MAX_ATTEMPTS
-            ? new Date(now.getTime() + LOCK_DURATION_MS)
-            : null,
-      },
+    await prisma.$transaction(async (transaction) => {
+      const currentTime = new Date();
+      const updated = await transaction.user.updateMany({
+        where: {
+          id: user.id,
+          OR: [{ lockedUntil: null }, { lockedUntil: { lte: currentTime } }],
+        },
+        data: { failedAttempts: { increment: 1 } },
+      });
+      if (!updated.count) return;
+
+      const latestUser = await transaction.user.findUnique({
+        where: { id: user.id },
+        select: { failedAttempts: true },
+      });
+      if (latestUser && latestUser.failedAttempts >= MAX_ATTEMPTS) {
+        await transaction.user.update({
+          where: { id: user.id },
+          data: {
+            failedAttempts: 0,
+            lockedUntil: new Date(Date.now() + LOCK_DURATION_MS),
+          },
+        });
+      }
     });
     return NextResponse.json(
       { error: "NIPP atau kata sandi tidak sesuai" },

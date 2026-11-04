@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
-    "db:seed-demo": "node scripts/seed-demo.mjs"
+    "db:setup-local": "node scripts/setup-local.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

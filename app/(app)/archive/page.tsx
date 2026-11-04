@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { getArchiveScope } from "@/lib/auth/scope";
 import {
   StatementList,
   PageHeading,
@@ -10,19 +11,9 @@ export const instant = false;
 
 export default async function ArchivePage() {
   const user = await requireUser();
-  const scope =
-    user.role === "PEKERJA"
-      ? { pekerjaId: user.employeeId }
-      : user.role === "ATASAN"
-        ? {
-            OR: [
-              { pekerjaId: user.employeeId },
-              { pekerja: { atasanId: user.employeeId } },
-            ],
-          }
-        : {};
+  const scope = getArchiveScope(user);
   const statements = await prisma.statement.findMany({
-    where: { ...scope, status: { in: ["DISETUJUI_TI", "DITOLAK"] } },
+    where: scope,
     include: {
       pekerja: {
         select: {

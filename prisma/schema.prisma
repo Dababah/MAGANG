@@ -59,18 +59,19 @@ model Employee {
 }
 
 model User {
-  id             Int        @id @default(autoincrement())
-  employeeId     Int        @unique @map("employee_id")
-  email          String?    @unique @db.VarChar(190)
-  passwordHash   String     @map("password_hash") @db.VarChar(200)
-  role           Role       @default(PEKERJA)
-  aktif          Boolean    @default(true)
-  failedAttempts Int        @default(0) @map("failed_attempts")
-  lockedUntil    DateTime?  @map("locked_until")
-  createdAt      DateTime   @default(now()) @map("dibuat_pada")
-  employee       Employee   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  id             Int          @id @default(autoincrement())
+  employeeId     Int          @unique @map("employee_id")
+  email          String?      @unique @db.VarChar(190)
+  passwordHash   String       @map("password_hash") @db.VarChar(200)
+  role           Role         @default(PEKERJA)
+  aktif          Boolean      @default(true)
+  failedAttempts Int          @default(0) @map("failed_attempts")
+  lockedUntil    DateTime?    @map("locked_until")
+  createdAt      DateTime     @default(now()) @map("dibuat_pada")
+  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   sessions       Session[]
   auditLogs      AuditLog[]
+  attachments    Attachment[]
 
   @@map("users")
 }
@@ -118,11 +119,29 @@ model Statement {
   pekerja         Employee        @relation(fields: [pekerjaId], references: [id], onDelete: Restrict)
   formVersion     FormVersion     @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
   approvals       Approval[]
+  attachments     Attachment[]
 
   @@index([pekerjaId, status])
   @@index([tanggal])
   @@index([status])
   @@map("statements")
+}
+
+model Attachment {
+  id          Int       @id @default(autoincrement())
+  statementId Int       @map("statement_id")
+  namaFile    String    @map("nama_file") @db.VarChar(255)
+  tipeMime    String    @map("tipe_mime") @db.VarChar(100)
+  ukuran      Int
+  filePath    String    @map("file_path") @db.VarChar(500)
+  uploadedBy  Int       @map("uploaded_by")
+  createdAt   DateTime  @default(now()) @map("dibuat_pada")
+  statement   Statement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  uploader    User      @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@index([statementId])
+  @@index([uploadedBy])
+  @@map("attachments")
 }
 
 model Approval {
