@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 
 interface AttachmentListProps {
   statementId: number;
-  onAttachmentsChange?: (attachments: any[]) => void;
+  onAttachmentsChange?: (attachments: Attachment[]) => void;
   readOnly?: boolean;
 }
 
@@ -81,7 +81,9 @@ export function AttachmentManager({
       const newAttachment = data.data;
 
       setAttachments((prev) => [newAttachment, ...prev]);
-      onAttachmentsChange?.((prev) => [newAttachment, ...prev] as any[]);
+      if (onAttachmentsChange) {
+        onAttachmentsChange([newAttachment, ...(attachments || [])]);
+      }
       setSuccess(
         `File "${file.name}" berhasil diunggah (${formatFileSize(file.size)})`,
       );

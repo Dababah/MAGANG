@@ -1,5 +1,4 @@
 import type { Prisma } from "@prisma/client";
-import type { ReturnType } from "@/lib/auth/session";
 
 export type UserSession = NonNullable<
   Awaited<ReturnType<typeof import("@/lib/auth/session").getCurrentUser>>
@@ -99,7 +98,9 @@ export function getApprovalQueueScope(
  * - SUPER_ADMIN: All archived statements
  */
 export function getArchiveScope(user: UserSession): Prisma.StatementWhereInput {
-  const baseStatus = { status: { in: ["DISETUJUI_TI", "DITOLAK"] as const } };
+  const baseStatus = {
+    status: { in: ["DISETUJUI_TI", "DITOLAK"] },
+  } as Prisma.StatementWhereInput;
 
   if (user.role === "PEKERJA") {
     return {
