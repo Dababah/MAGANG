@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./figma.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,7 +20,22 @@ export const metadata: Metadata = {
     "Sistem manajemen dan persetujuan pernyataan pekerja PT Kereta Api Indonesia (Persero).",
   keywords: "KAI, Pernyataan, Portal Pekerja, Persetujuan",
   authors: [{ name: "PT Kereta Api Indonesia" }],
-  viewport: "width=device-width, initial-scale=1",
+  icons: {
+    icon: "/logo-kai-icon.svg",
+    apple: "/logo-kai-icon.svg",
+  },
+  openGraph: {
+    title: "Portal Pernyataan Pekerja KAI",
+    description:
+      "Sistem manajemen dan persetujuan pernyataan pekerja PT Kereta Api Indonesia",
+    images: [{ url: "/logo-kai.svg" }],
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

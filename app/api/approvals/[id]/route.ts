@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { canUserApproveStatement } from "@/lib/auth/scope";
 import { approvalDecisionSchema } from "@/lib/validators/approval";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -33,54 +34,47 @@ export async function POST(request: Request, { params }: RouteContext) {
     );
   }
 
-  const statement = await prisma.statement.findUnique({
-    where: { id: statementId },
-    include: { pekerja: { select: { atasanId: true } } },
-  });
-  if (!statement)
-    return NextResponse.json(
-      { error: "Pernyataan tidak ditemukan" },
-      { status: 404 },
-    );
-
-  const managerCanApprove =
-    user.role === "ATASAN" && statement.pekerja.atasanId === user.employeeId;
-  const itCanApprove = user.role === "ADMIN_TI" || user.role === "SUPER_ADMIN";
-  const stage =
-    statement.status === "DIAJUKAN" && managerCanApprove
-      ? 1
-      : statement.status === "DISETUJUI_ATASAN" && itCanApprove
-        ? 2
-        : statement.status === "DIAJUKAN" && user.role === "SUPER_ADMIN"
-          ? 1
-          : 0;
-
-  if (!stage || statement.pekerjaId === user.employeeId) {
+  const permission = await canUserApproveStatement(user, statementId, prisma);
+  if (!permission.canApprove) {
+    if (permission.reason === "Statement not found") {
+      return NextResponse.json(
+        { error: "Pernyataan tidak ditemukan" },
+        { status: 404 },
+      );
+    }
     return NextResponse.json(
       { error: "Anda tidak berwenang memproses pernyataan ini" },
       { status: 403 },
     );
   }
+  const stage = permission.stage;
+  if (!stage) {
+    return NextResponse.json(
+      { error: "Tahap persetujuan tidak dapat ditentukan" },
+      { status: 409 },
+    );
+  }
+  const expectedStatus = stage === 1 ? "DIAJUKAN" : "DISETUJUI_ATASAN";
 
   const nextStatus =
     parsed.data.keputusan === "TOLAK"
       ? "DITOLAK"
       : stage === 1
         ? "DISETUJUI_ATASAN"
-        : "DISETUJUI_TI";
+        : "MENUNGGU_TANDA_TANGAN";
 
   try {
     const updated = await prisma.$transaction(
       async (transaction: Prisma.TransactionClient) => {
         const changed = await transaction.statement.updateMany({
-          where: { id: statement.id, status: statement.status },
+          where: { id: statementId, status: expectedStatus },
           data: { status: nextStatus },
         });
         if (!changed.count) throw new Error("ALREADY_PROCESSED");
 
         const decision = await transaction.approval.create({
           data: {
-            statementId: statement.id,
+            statementId,
             tahap: stage,
             approverId: user.employeeId,
             keputusan: parsed.data.keputusan,
@@ -95,8 +89,8 @@ export async function POST(request: Request, { params }: RouteContext) {
                 ? "SETUJUI_PERNYATAAN"
                 : "TOLAK_PERNYATAAN",
             entitas: "Statement",
-            entitasId: String(statement.id),
-            dataSebelum: { status: statement.status },
+            entitasId: String(statementId),
+            dataSebelum: { status: expectedStatus },
             dataSesudah: { status: nextStatus, tahap: stage },
           },
         });

@@ -1,16 +1,15 @@
-import type { Prisma } from "@prisma/client";
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { LogoutButton } from "@/components/logout-button";
+import { FigmaPortalShell } from "@/components/figma-portal-shell";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { formatJakartaDate, getJakartaMonthStart } from "@/lib/jakarta-time";
 import {
   getStatementVisibilityScope,
   getApprovalQueueScope,
+  getVerificationQueueScope,
 } from "@/lib/auth/scope";
 
-function Icon({ name }: { name: string }) {
+function Icon({ name, size = 20 }: { name: string; size?: number }) {
   const paths: Record<string, ReactNode> = {
     grid: (
       <>
@@ -82,6 +81,8 @@ function Icon({ name }: { name: string }) {
   return (
     <svg
       aria-hidden="true"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -97,16 +98,16 @@ export const instant = false;
 
 export default async function Home() {
   const user = await requireUser();
-  const isAdmin = user.role === "ADMIN_TI" || user.role === "SUPER_ADMIN";
   const statementScope = getStatementVisibilityScope(user);
   const pendingScope = getApprovalQueueScope(user);
+  const verificationScope = getVerificationQueueScope(user);
   const monthStart = getJakartaMonthStart(new Date());
 
   const [
     totalStatements,
     pendingCount,
+    verificationCount,
     approvedThisMonth,
-    employeesCount,
     recentStatements,
     pendingStatements,
   ] = await Promise.all([
@@ -114,21 +115,14 @@ export default async function Home() {
     prisma.statement.count({
       where: pendingScope,
     }),
+    prisma.statement.count({ where: verificationScope }),
     prisma.statement.count({
       where: {
         ...statementScope,
-        status: "DISETUJUI_TI",
+        status: { in: ["DISETUJUI_TI", "SELESAI"] },
         updatedAt: { gte: monthStart },
       },
     }),
-    isAdmin
-      ? prisma.employee.count({ where: { aktif: true } })
-      : prisma.employee.count({
-          where: {
-            aktif: true,
-            businessAreaId: user.employee.businessAreaId,
-          },
-        }),
     prisma.statement.findMany({
       where: statementScope,
       include: {
@@ -149,28 +143,14 @@ export default async function Home() {
       take: 3,
     }),
   ]);
-  const navigation = [
-    { label: "Ringkasan", icon: "grid", active: true, href: "/" },
-    { label: "Pernyataan saya", icon: "file", href: "/statements" },
-    {
-      label: "Persetujuan",
-      icon: "check",
-      count: pendingCount ? String(pendingCount) : undefined,
-      href: "/approvals",
-    },
-    { label: "Arsip", icon: "archive", href: "/archive" },
-    ...(user.role === "SUPER_ADMIN"
-      ? [
-          { label: "Data pegawai", icon: "users", href: "/admin/employees" },
-          { label: "Audit aktivitas", icon: "trend", href: "/admin/audit" },
-        ]
-      : []),
-  ];
   const statusText: Record<string, string> = {
     DRAFT: "Draf",
     DIAJUKAN: "Menunggu persetujuan",
     DISETUJUI_ATASAN: "Disetujui atasan",
     DISETUJUI_TI: "Disetujui TI",
+    MENUNGGU_TANDA_TANGAN: "Menunggu tanda tangan",
+    MENUNGGU_VERIFIKASI: "Menunggu verifikasi arsip",
+    SELESAI: "Selesai",
     DITOLAK: "Ditolak",
   };
   const statusTone: Record<string, string> = {
@@ -178,323 +158,299 @@ export default async function Home() {
     DIAJUKAN: "review",
     DISETUJUI_ATASAN: "approved",
     DISETUJUI_TI: "complete",
+    MENUNGGU_TANDA_TANGAN: "approved",
+    MENUNGGU_VERIFIKASI: "review",
+    SELESAI: "complete",
     DITOLAK: "revision",
   };
+  const latestStatus = recentStatements[0]?.status;
+  const workflowStage: Record<string, number> = {
+    DIAJUKAN: 1,
+    DISETUJUI_ATASAN: 2,
+    MENUNGGU_TANDA_TANGAN: 3,
+    MENUNGGU_VERIFIKASI: 4,
+    SELESAI: 5,
+    DISETUJUI_TI: 3,
+  };
+  const currentStage = latestStatus ? (workflowStage[latestStatus] ?? 0) : 0;
+  const isRejected = latestStatus === "DITOLAK";
 
   return (
-    <div className="workspace">
-      <aside className="sidebar">
-        <Link className="brand" href="/" aria-label="Pernyataan KAI, beranda">
-          <span className="brand-mark">K</span>
-          <span className="brand-copy">
-            <strong>pernyataan</strong>
-            <small>KERETA API INDONESIA</small>
-          </span>
-        </Link>
-        <div className="workspace-label">WORKSPACE</div>
-        <div className="area-switcher">
-          <span className="area-dot" />
-          <span>
-            <strong>{user.employee.businessArea.nama}</strong>
-            <small>Wilayah operasional</small>
-          </span>
-          <span className="switcher-caret">⌄</span>
-        </div>
-        <div className="nav-label">MENU UTAMA</div>
-        <nav className="side-nav" aria-label="Menu utama">
-          {navigation.map((item) => (
-            <a
-              className={`nav-item${item.active ? " active" : ""}`}
-              href={item.href}
-              key={item.label}>
-              <Icon name={item.icon} />
-              <span>{item.label}</span>
-              {item.count && <span className="nav-count">{item.count}</span>}
+    <FigmaPortalShell
+      employee={{
+        namaLengkap: user.employee.namaLengkap,
+        nipp: user.employee.nipp,
+        businessArea: user.employee.businessArea.nama,
+      }}
+      role={user.role}
+      pendingCount={pendingCount + verificationCount}>
+      <div className="fd-dashboard">
+        <section className="welcome">
+          <div>
+            <div className="eyebrow">
+              <span /> PORTAL INTERNAL PEKERJA
+            </div>
+            <h1>Selamat datang, {user.employee.namaLengkap.split(" ")[0]}.</h1>
+            <p>Pantau seluruh proses pernyataan Anda dalam satu tempat.</p>
+          </div>
+          {user.role === "PEKERJA" && (
+            <a className="primary-button" href="/statements/new">
+              <Icon name="plus" size={19} /> Buat pernyataan
             </a>
-          ))}
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="secure-note">
-            <span className="secure-icon">●</span>
-            <span>
-              <strong>Ruang kerja aman</strong>
-              <small>Data terlindungi</small>
-            </span>
-          </div>
-          <button className="profile-button" type="button">
-            <span className="avatar">AP</span>
-            <span className="profile-copy">
-              <strong>{user.employee.namaLengkap}</strong>
-              <small>{user.role.replaceAll("_", " ")}</small>
-            </span>
-            <span className="profile-more">···</span>
-          </button>
-          <LogoutButton />
-        </div>
-      </aside>
+          )}
+        </section>
 
-      <main className="main-area">
-        <header className="topbar">
-          <div className="breadcrumb">
-            <span>Workspace</span>
-            <Icon name="chevron" />
-            <strong>Ringkasan</strong>
+        <section className="hero-card">
+          <div className="hero-content">
+            <div className="hero-icon">
+              <Icon name="check" />
+            </div>
+            <span>PROSES TERINTEGRASI</span>
+            <h2>
+              Pengajuan lebih ringkas.
+              <br />
+              Pelacakan lebih jelas.
+            </h2>
+            <p>
+              Setiap tahapan tercatat dan dapat Anda pantau secara transparan.
+            </p>
+            <a href="/statements">
+              Pelajari alur pengajuan <Icon name="arrow" />
+            </a>
           </div>
-          <div className="topbar-actions">
-            <button
-              className="icon-button search-button"
-              type="button"
-              aria-label="Cari">
-              <Icon name="search" />
-            </button>
-            <button
-              className="icon-button notification-button"
-              type="button"
-              aria-label="Notifikasi">
-              <Icon name="bell" />
+          <div className="hero-visual">
+            <div className="hero-logo">
+              <img src="/assets/kai-logo-official.png" alt="" />
+            </div>
+            <div className="floating-card card-one">
+              <span>01</span>
+              <b>Ajukan</b>
+            </div>
+            <div className="floating-card card-two">
+              <span>02</span>
+              <b>Persetujuan</b>
+            </div>
+            <div className="floating-card card-three">
+              <span>03</span>
+              <b>Verifikasi</b>
+            </div>
+            <div className="hero-track">
               <i />
-            </button>
-            <span className="topbar-divider" />
-            <span className="today">
-              {formatJakartaDate(new Date(), { dateStyle: "full" })}
-            </span>
+              <i />
+            </div>
           </div>
-        </header>
+        </section>
 
-        <div className="page-content">
-          <section className="welcome-row">
+        <section className="stats-grid" aria-label="Ringkasan pengajuan">
+          <article className="stat-card">
+            <div className="stat-icon navy">
+              <Icon name="file" />
+            </div>
             <div>
-              <div className="eyebrow">
-                <span /> PORTAL PERNYATAAN PEKERJA
-              </div>
-              <h1>
-                Selamat datang, {user.employee.namaLengkap.split(" ")[0]}.
-              </h1>
-              <p>
-                Pantau pengajuan dan persetujuan pernyataan dalam satu tempat.
-              </p>
+              <span>Total pernyataan</span>
+              <strong>{totalStatements.toLocaleString("id-ID")}</strong>
+              <small>Dalam cakupan akses Anda</small>
             </div>
-            {user.role === "PEKERJA" && (
-              <a className="primary-button" href="/statements/new">
-                <Icon name="plus" /> Buat pernyataan
+            <Icon name="chevron" />
+          </article>
+          <article className="stat-card">
+            <div className="stat-icon orange">
+              <Icon name="clock" />
+            </div>
+            <div>
+              <span>Menunggu proses</span>
+              <strong>
+                {(pendingCount + verificationCount).toLocaleString("id-ID")}
+              </strong>
+              <small>Perlu ditindaklanjuti</small>
+            </div>
+            <Icon name="chevron" />
+          </article>
+          <article className="stat-card">
+            <div className="stat-icon green">
+              <Icon name="check" />
+            </div>
+            <div>
+              <span>Telah disetujui</span>
+              <strong>{approvedThisMonth.toLocaleString("id-ID")}</strong>
+              <small>Bulan ini</small>
+            </div>
+            <Icon name="chevron" />
+          </article>
+        </section>
+
+        <section className="content-grid">
+          <div className="panel recent-panel">
+            <div className="panel-heading">
+              <div>
+                <span>AKTIVITAS TERBARU</span>
+                <h3>Pernyataan terbaru</h3>
+              </div>
+              <a href="/statements">
+                Lihat semua <Icon name="arrow" size={15} />
               </a>
-            )}
-          </section>
-
-          <section className="metrics" aria-label="Ringkasan pengajuan">
-            <article className="metric-card metric-total">
-              <div className="metric-top">
-                <span>Total pernyataan</span>
-                <span className="metric-icon">
-                  <Icon name="file" />
-                </span>
-              </div>
-              <div className="metric-value">
-                {totalStatements.toLocaleString("id-ID")}
-              </div>
-              <div className="metric-foot">
-                <span className="metric-note">Dalam cakupan akses Anda</span>
-              </div>
-            </article>
-            <article className="metric-card">
-              <div className="metric-top">
-                <span>Menunggu persetujuan</span>
-                <span className="metric-icon amber">
-                  <Icon name="clock" />
-                </span>
-              </div>
-              <div className="metric-value">
-                {pendingCount.toLocaleString("id-ID")}
-              </div>
-              <div className="metric-foot">
-                <span className="metric-note">Pengajuan belum selesai</span>
-              </div>
-            </article>
-            <article className="metric-card">
-              <div className="metric-top">
-                <span>Disetujui bulan ini</span>
-                <span className="metric-icon green">
-                  <Icon name="check" />
-                </span>
-              </div>
-              <div className="metric-value">
-                {approvedThisMonth.toLocaleString("id-ID")}
-              </div>
-              <div className="metric-foot">
-                <span className="metric-note">Persetujuan tahap akhir</span>
-              </div>
-            </article>
-            <article className="metric-card">
-              <div className="metric-top">
-                <span>
-                  {isAdmin ? "Pekerja terdaftar" : "Pekerja di wilayah"}
-                </span>
-                <span className="metric-icon coral">
-                  <Icon name="users" />
-                </span>
-              </div>
-              <div className="metric-value">
-                {employeesCount.toLocaleString("id-ID")}
-              </div>
-              <div className="metric-foot">
-                <span className="metric-note">
-                  {user.employee.businessArea.nama}
-                </span>
-              </div>
-            </article>
-          </section>
-
-          <section className="content-grid">
-            <div className="activity-panel">
-              <div className="section-heading">
-                <div>
-                  <h2>Pengajuan terbaru</h2>
-                  <p>Aktivitas pernyataan dari seluruh wilayah</p>
-                </div>
-                <a className="text-link" href="/statements">
-                  Lihat semua <Icon name="arrow" />
+            </div>
+            <div className="statement-list">
+              {recentStatements.map((item) => (
+                <a className="statement-row" href="/statements" key={item.id}>
+                  <div className="document-icon">
+                    <Icon name="file" size={20} />
+                  </div>
+                  <div className="statement-main">
+                    <strong>{item.noRef ?? `DRAF-${item.id}`}</strong>
+                    <span>
+                      {item.pekerja.namaLengkap} ·{" "}
+                      {formatJakartaDate(item.updatedAt, {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </span>
+                  </div>
+                  <span className={`status ${statusTone[item.status]}`}>
+                    <i />
+                    {statusText[item.status]}
+                  </span>
+                  <span className="row-action">
+                    <Icon name="chevron" size={18} />
+                  </span>
                 </a>
-              </div>
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>PEKERJA</th>
-                      <th>NOMOR REFERENSI</th>
-                      <th>STATUS</th>
-                      <th>TANGGAL</th>
-                      <th aria-label="Detail" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentStatements.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <div className="employee-cell">
-                            <span className="employee-avatar">
-                              {item.namaLengkap
-                                .split(" ")
-                                .map((part) => part[0])
-                                .slice(0, 2)
-                                .join("")}
-                            </span>
-                            <span>
-                              <strong>{item.namaLengkap}</strong>
-                              <small>{item.businessArea}</small>
-                            </span>
-                          </div>
-                        </td>
-                        <td className="ref-cell">
-                          {item.noRef ?? `DRAF-${item.id}`}
-                        </td>
-                        <td>
-                          <span
-                            className={`status-pill ${statusTone[item.status]}`}>
-                            <i />
-                            {statusText[item.status]}
-                          </span>
-                        </td>
-                        <td className="time-cell">
-                          {formatJakartaDate(item.updatedAt, {
-                            day: "numeric",
-                            month: "short",
-                          })}
-                        </td>
-                        <td>
-                          <a
-                            className="row-link"
-                            href="/statements"
-                            aria-label={`Buka ${item.noRef ?? item.id}`}>
-                            <Icon name="chevron" />
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
-                    {recentStatements.length === 0 && (
-                      <tr>
-                        <td className="empty-table" colSpan={5}>
-                          Belum ada pengajuan pernyataan.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <div className="table-footer">
-                <span>
-                  Menampilkan <strong>{recentStatements.length}</strong>{" "}
-                  pengajuan terbaru
-                </span>
-                <a href="/statements">
-                  Buka daftar pernyataan <Icon name="arrow" />
-                </a>
+              ))}
+              {recentStatements.length === 0 && (
+                <p className="fd-empty">Belum ada pengajuan pernyataan.</p>
+              )}
+            </div>
+          </div>
+          <div className="panel process-panel">
+            <div className="panel-heading">
+              <div>
+                <span>ALUR PENGAJUAN</span>
+                <h3>Status proses</h3>
               </div>
             </div>
-
-            <aside className="right-column">
-              <section className="approval-panel">
-                <div className="section-heading compact">
-                  <div>
-                    <h2>Perlu persetujuan</h2>
-                    <p>Antrian yang menunggu tindakan Anda</p>
-                  </div>
-                  <span className="approval-number">
-                    {pendingStatements.length}
+            <div className="timeline">
+              <div className="done">
+                <b>
+                  <Icon name="check" size={15} />
+                </b>
+                <div>
+                  <strong>Pengajuan dibuat</strong>
+                  <span>
+                    {recentStatements[0]
+                      ? formatJakartaDate(
+                          recentStatements[0].submittedAt ??
+                            recentStatements[0].tanggal,
+                          { day: "numeric", month: "short", year: "numeric" },
+                        )
+                      : "Belum ada pengajuan"}
                   </span>
                 </div>
-                <div className="approval-list">
-                  {pendingStatements.map((item, index) => (
-                    <a
-                      href="/approvals"
-                      className="approval-item"
-                      key={item.id}>
-                      <span
-                        className={`approval-avatar ${["blue", "yellow", "mint"][index % 3]}`}>
-                        {item.pekerja.namaLengkap
-                          .split(" ")
-                          .map((part) => part[0])
-                          .slice(0, 2)
-                          .join("")}
-                      </span>
-                      <span className="approval-copy">
-                        <strong>{item.pekerja.namaLengkap}</strong>
-                        <small>{item.noRef ?? "Pernyataan baru"}</small>
-                      </span>
-                      <Icon name="chevron" />
-                    </a>
-                  ))}
-                  {pendingStatements.length === 0 && (
-                    <p className="empty-approvals">
-                      Tidak ada persetujuan yang menunggu.
-                    </p>
-                  )}
-                </div>
-                <a className="approval-link" href="/approvals">
-                  Buka kotak persetujuan <Icon name="arrow" />
-                </a>
-              </section>
-              <section className="notice-panel">
-                <div className="notice-symbol">i</div>
+              </div>
+              <div
+                className={
+                  currentStage === 1
+                    ? "current"
+                    : currentStage > 1
+                      ? "done"
+                      : ""
+                }>
+                <b>
+                  {currentStage > 1 ? <Icon name="check" size={15} /> : "2"}
+                </b>
                 <div>
-                  <strong>Formulir versi terbaru</strong>
-                  <p>
-                    Gunakan versi formulir aktif untuk setiap pengajuan baru.
-                  </p>
-                  <a href="/statements/new">
-                    Lihat ketentuan <Icon name="arrow" />
-                  </a>
+                  <strong>Persetujuan atasan</strong>
+                  <span>
+                    {isRejected && latestStatus === "DITOLAK"
+                      ? "Keputusan tercatat"
+                      : currentStage === 1
+                        ? "Menunggu peninjauan"
+                        : currentStage > 1
+                          ? "Selesai"
+                          : "Belum dimulai"}
+                  </span>
                 </div>
-              </section>
-            </aside>
-          </section>
-          <footer className="page-footer">
-            <span>PT Kereta Api Indonesia (Persero)</span>
-            <span>
-              Portal Pernyataan <i /> Sistem internal
-            </span>
-          </footer>
-        </div>
-      </main>
-    </div>
+              </div>
+              <div
+                className={
+                  currentStage === 2
+                    ? "current"
+                    : currentStage > 2
+                      ? "done"
+                      : ""
+                }>
+                <b>
+                  {currentStage > 2 ? <Icon name="check" size={15} /> : "3"}
+                </b>
+                <div>
+                  <strong>Persetujuan TI</strong>
+                  <span>
+                    {currentStage === 2
+                      ? "Menunggu peninjauan"
+                      : currentStage > 2
+                        ? "Selesai"
+                        : isRejected
+                          ? "Tidak dilanjutkan"
+                          : "Menunggu tahap sebelumnya"}
+                  </span>
+                </div>
+              </div>
+              <div
+                className={
+                  currentStage === 3
+                    ? "current"
+                    : currentStage > 3
+                      ? "done"
+                      : ""
+                }>
+                <b>
+                  {currentStage > 3 ? <Icon name="check" size={15} /> : "4"}
+                </b>
+                <div>
+                  <strong>Tanda tangan pekerja</strong>
+                  <span>
+                    {latestStatus === "MENUNGGU_TANDA_TANGAN"
+                      ? "Unduh PDF, tanda tangani, lalu unggah scan"
+                      : currentStage > 3
+                        ? "Scan sudah diunggah"
+                        : isRejected
+                          ? "Tidak dilanjutkan"
+                          : "Menunggu persetujuan TI"}
+                  </span>
+                </div>
+              </div>
+              <div
+                className={
+                  currentStage === 4
+                    ? "current"
+                    : currentStage > 4
+                      ? "done"
+                      : ""
+                }>
+                <b>
+                  {currentStage > 4 ? <Icon name="check" size={15} /> : "5"}
+                </b>
+                <div>
+                  <strong>Verifikasi arsip</strong>
+                  <span>
+                    {currentStage === 4
+                      ? "Menunggu pemeriksaan Admin TI"
+                      : currentStage > 4
+                        ? "Selesai"
+                        : isRejected
+                          ? "Tidak dilanjutkan"
+                          : "Menunggu scan bertanda tangan"}
+                  </span>
+                </div>
+              </div>
+            </div>
+            {pendingStatements.length > 0 && (
+              <a className="approval-link" href="/approvals">
+                {pendingStatements.length} pengajuan menunggu tindakan{" "}
+                <Icon name="arrow" />
+              </a>
+            )}
+          </div>
+        </section>
+      </div>
+    </FigmaPortalShell>
   );
 }

@@ -17,6 +17,7 @@ type FormVersion = {
   id: number;
   nomorDokumen: string;
   versi: string;
+  tanggalTerbit: string;
   teksKetentuan: string;
 };
 
@@ -45,6 +46,7 @@ export function NewStatementForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (loading || statementId !== null) return;
     setError("");
     setLoading(true);
     try {
@@ -74,11 +76,13 @@ export function NewStatementForm({
     <main className="form-page">
       <header className="form-page-top">
         <Link className="brand" href="/">
-          <span className="brand-mark">K</span>
-          <span className="brand-copy">
-            <strong>pernyataan</strong>
-            <small>KERETA API INDONESIA</small>
-          </span>
+          <img
+            src="/logo-kai-icon.svg"
+            alt="KAI"
+            className="logo-icon"
+            width={100}
+            height={50}
+          />
         </Link>
         <Link className="form-back" href="/statements">
           Kembali ke pernyataan
@@ -110,215 +114,89 @@ export function NewStatementForm({
               Kembali ke pernyataan
             </Link>
           </section>
-        ) : (
-          <form className="statement-form" onSubmit={handleSubmit}>
-            <div className="form-section-heading">
-              <span className="form-step">01</span>
-              <div>
-                <h2>Informasi pengajuan</h2>
-                <p>Identitas ini akan disimpan sebagai snapshot pengajuan.</p>
-              </div>
-            </div>
-
-            <div
-              className="statement-document-shell"
-              aria-label="Dokumen surat pernyataan">
-              <div className="statement-doc-header">
-                <div className="statement-doc-brand">
-                  <span className="doc-mark">K</span>
-                  <div>
-                    <strong>PT KERETA API INDONESIA</strong>
-                    <small>(PERSERO)</small>
-                  </div>
-                </div>
-                <div className="statement-doc-badges">
-                  <span className="doc-badge">TERBATAS</span>
+        ) : statementId !== null ? null : (
+          <form
+            className="statement-form figma-statement-form"
+            onSubmit={handleSubmit}>
+            <section className="form-block">
+              <div className="form-block-title">
+                <span>01</span>
+                <div>
+                  <h3>Identitas pekerja</h3>
+                  <p>Data diambil dari profil kepegawaian Anda.</p>
                 </div>
               </div>
-
-              <div className="statement-doc-meta">
-                <div className="meta-field">
-                  <span>Nomor</span>
-                  <strong>:</strong>
-                  <em>FR-SM/01/018/004/2020</em>
-                </div>
-                <div className="meta-field">
-                  <span>Tanggal Terbit</span>
-                  <strong>:</strong>
-                  <em>12 Oktober 2020</em>
-                </div>
-                <div className="meta-field">
-                  <span>Versi</span>
-                  <strong>:</strong>
-                  <em>{formVersion.versi}</em>
-                </div>
-                <div className="meta-field">
-                  <span>Halaman</span>
-                  <strong>:</strong>
-                  <em>1 dari 2</em>
-                </div>
+              <div className="identity-grid">
+                <label>
+                  Nama lengkap
+                  <input value={employee.namaLengkap} readOnly />
+                </label>
+                <label>
+                  NIPP
+                  <input value={employee.nipp} readOnly />
+                </label>
+                <label>
+                  Jabatan
+                  <input value={employee.jabatan} readOnly />
+                </label>
+                <label>
+                  Tempat kedudukan
+                  <input value={employee.tempatKedudukan} readOnly />
+                </label>
               </div>
-
-              <div className="statement-doc-grid">
-                <div className="doc-info-row">
-                  <span>No. Ref</span>
-                  <strong className="doc-fill">Akan dibuat otomatis</strong>
-                </div>
-                <div className="doc-info-row">
-                  <span>Tanggal</span>
-                  <strong className="doc-fill">{formattedToday}</strong>
-                </div>
-                <div className="doc-info-row">
-                  <span>Business Area</span>
-                  <strong className="doc-fill">{employee.businessArea}</strong>
-                </div>
-                <div className="doc-info-row">
-                  <span>Formulir</span>
-                  <strong className="doc-fill">
-                    {formVersion.nomorDokumen} / {formVersion.versi}
-                  </strong>
-                </div>
-              </div>
-
-              <div className="statement-doc-body">
-                <p className="formal-intro">
-                  Pada hari ini, tanggal{" "}
-                  <span className="inline-blank">
-                    ...........................
-                  </span>
-                  bulan{" "}
-                  <span className="inline-blank">
-                    ............................
-                  </span>{" "}
-                  tahun{" "}
-                  <span className="inline-blank">
-                    ............................
-                  </span>
-                </p>
-                <p className="formal-intro">
-                  Dengan ini, saya yang bertandatangan di bawah ini:
-                </p>
-
-                <div className="formal-identity-grid">
-                  <div className="formal-identity-row">
-                    <span>Nama Lengkap</span>
-                    <strong>{employee.namaLengkap}</strong>
-                  </div>
-                  <div className="formal-identity-row">
-                    <span>NIPP</span>
-                    <strong>{employee.nipp}</strong>
-                  </div>
-                  <div className="formal-identity-row">
-                    <span>Jabatan</span>
-                    <strong>{employee.jabatan}</strong>
-                  </div>
-                  <div className="formal-identity-row">
-                    <span>Tempat Kedudukan</span>
-                    <strong>{employee.tempatKedudukan}</strong>
-                  </div>
-                </div>
-
-                <p className="formal-declare">
-                  menyatakan bahwa saya tidak bersedia dilaksanakan
-                  install/uninstall perangkat lunak dan bersedia menanggung
-                  segala konsekuensinya baik secara finansial maupun hukum
-                  sesuai peraturan perundang-undangan yang berlaku serta
-                  ketentuan perusahaan.
-                </p>
-
-                <div className="formal-reason-box">
-                  <label>Alasan</label>
-                  <div className="reason-placeholder">
-                    {alasan || "Jelaskan kebutuhan dan alasan secara jelas..."}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="form-readonly-grid">
-              <div>
-                <span>NAMA LENGKAP</span>
-                <strong>{employee.namaLengkap}</strong>
-              </div>
-              <div>
-                <span>NIPP</span>
-                <strong>{employee.nipp}</strong>
-              </div>
-              <div>
-                <span>JABATAN</span>
-                <strong>{employee.jabatan}</strong>
-              </div>
-              <div>
-                <span>TEMPAT KEDUDUKAN</span>
-                <strong>{employee.tempatKedudukan}</strong>
-              </div>
-              <div>
-                <span>BUSINESS AREA</span>
-                <strong>{employee.businessArea}</strong>
-              </div>
-              <div>
-                <span>FORMULIR</span>
-                <strong>
+              <div className="figma-form-meta">
+                <span>{employee.businessArea}</span>
+                <span>
                   {formVersion.nomorDokumen} · {formVersion.versi}
-                </strong>
+                </span>
+                <span>{formattedToday}</span>
               </div>
-            </div>
-
-            <section className="form-terms">
-              <h2>Ketentuan pernyataan</h2>
-              <p>{formVersion.teksKetentuan}</p>
             </section>
-
-            <label className="field-label" htmlFor="alasan">
-              Alasan atau keterangan <span>*</span>
-            </label>
-            <textarea
-              id="alasan"
-              maxLength={5000}
-              minLength={10}
-              onChange={(event) => setAlasan(event.target.value)}
-              placeholder="Jelaskan tujuan, kebutuhan, dan situasi yang melatarbelakangi pernyataan ini. Contoh: kebutuhan operasional, perubahan aplikasi, atau pemeliharaan sistem yang dibutuhkan dalam rangka pekerjaan."
-              required
-              rows={8}
-              value={alasan}
-            />
-            <div className="field-hint">
-              <span>Jangan cantumkan kata sandi atau informasi rahasia.</span>
-              <span>{alasan.length}/5.000</span>
-            </div>
+            <section className="form-block">
+              <div className="form-block-title">
+                <span>02</span>
+                <div>
+                  <h3>Alasan pernyataan</h3>
+                  <p>Jelaskan alasan secara jelas dan bertanggung jawab.</p>
+                </div>
+              </div>
+              <label className="reason-label" htmlFor="alasan">
+                Alasan atau keterangan
+                <textarea
+                  id="alasan"
+                  maxLength={5000}
+                  minLength={10}
+                  onChange={(event) => setAlasan(event.target.value)}
+                  placeholder="Tuliskan alasan pengajuan Anda di sini..."
+                  required
+                  rows={7}
+                  value={alasan}
+                />
+                <small>
+                  Minimal 10 karakter · Maksimal 5.000 karakter ·{" "}
+                  {alasan.length}/5.000
+                </small>
+              </label>
+              <details className="form-terms figma-form-terms">
+                <summary>
+                  Ketentuan {formVersion.nomorDokumen} · versi{" "}
+                  {formVersion.versi}
+                </summary>
+                <p>{formVersion.teksKetentuan}</p>
+              </details>
+            </section>
             {error && (
               <p className="form-error" role="alert">
                 {error}
               </p>
             )}
-            <div className="form-consent">
+            <div className="form-notice">
               <span className="consent-mark">✓</span>
               <p>
-                Saya menyatakan bahwa informasi yang disampaikan benar, dapat
-                dipertanggungjawabkan, dan bersedia mengikuti ketentuan yang
-                berlaku dalam pelaksanaan tugas dan penggunaan sistem.
+                Dengan mengirim formulir ini, Anda menyatakan data yang
+                diberikan benar dan bersedia mengikuti ketentuan perusahaan yang
+                berlaku.
               </p>
-            </div>
-            <div
-              className="statement-signature-boxes"
-              aria-label="Area tanda tangan">
-              <div className="signature-block">
-                <span>Pekerja</span>
-                <div className="signature-line" />
-                <strong>{employee.namaLengkap}</strong>
-              </div>
-              <div className="signature-block">
-                <span>NIPP</span>
-                <div className="signature-line" />
-                <strong>{employee.nipp}</strong>
-              </div>
-              <div className="signature-block">
-                <span>Tempat, tanggal</span>
-                <div className="signature-line" />
-                <strong>
-                  {employee.tempatKedudukan}, {formattedToday}
-                </strong>
-              </div>
             </div>
             <div className="form-actions">
               <Link href="/statements">Batal</Link>
@@ -339,8 +217,9 @@ export function NewStatementForm({
               <div className="success-icon">✓</div>
               <h2>Pernyataan berhasil dibuat</h2>
               <p>
-                Pengajuan Anda telah dibuat. Anda dapat menambahkan lampiran
-                pendukung di bawah ini sebelum mengirim pernyataan.
+                Pengajuan telah dikirim untuk persetujuan. Lampiran pendukung
+                dapat ditambahkan di bawah ini; scan bertanda tangan diunggah
+                setelah persetujuan TI.
               </p>
             </div>
 
@@ -352,19 +231,12 @@ export function NewStatementForm({
 
             <div className="form-actions">
               <button
-                className="secondary-button"
+                className="primary-button"
                 onClick={() => {
                   router.push("/statements?success=1");
                   router.refresh();
                 }}>
-                Selesai & Kembali
-              </button>
-              <button
-                className="primary-button"
-                onClick={() => {
-                  router.push(`/statements/${statementId}?action=submit`);
-                }}>
-                Lanjut ke Pengajuan
+                Lihat pengajuan
                 <span aria-hidden="true">→</span>
               </button>
             </div>

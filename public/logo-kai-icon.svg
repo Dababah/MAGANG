@@ -1,0 +1,11 @@
+<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+  <!-- K -->
+  <path d="M 20 350 L 20 50 L 130 50 L 130 160 L 230 50 L 330 50 L 230 165 L 330 350 L 220 350 L 130 270 L 130 350 Z" fill="#001F5C"/>
+  
+  <!-- A (Orange) -->
+  <path d="M 340 350 L 520 50 L 700 350 L 600 350 L 560 270 L 460 270 L 420 350 Z M 510 150 L 470 270 L 550 270 Z" fill="#FF8C00"/>
+  
+  <!-- Diagonal stripe through A -->
+  <line x1="340" y1="120" x2="700" y2="350" stroke="white" stroke-width="25" stroke-linecap="round"/>
+  <line x1="370" y1="50" x2="700" y2="380" stroke="white" stroke-width="18" stroke-linecap="round"/>
+</svg>

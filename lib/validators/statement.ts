@@ -14,5 +14,8 @@ export const statementStatusSchema = z.enum([
   "DIAJUKAN",
   "DISETUJUI_ATASAN",
   "DISETUJUI_TI",
+  "MENUNGGU_TANDA_TANGAN",
+  "MENUNGGU_VERIFIKASI",
+  "SELESAI",
   "DITOLAK",
 ]);

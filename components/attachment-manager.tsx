@@ -3,11 +3,14 @@ import React, { useState, useRef } from "react";
 interface AttachmentListProps {
   statementId: number;
   onAttachmentsChange?: (attachments: Attachment[]) => void;
+  onUploadComplete?: () => void;
+  jenis?: "PENDUKUNG" | "DOKUMEN_TTD";
   readOnly?: boolean;
 }
 
 interface Attachment {
   id: number;
+  jenis: "PENDUKUNG" | "DOKUMEN_TTD";
   namaFile: string;
   tipeMime: string;
   ukuran: number;
@@ -22,6 +25,8 @@ interface Attachment {
 export function AttachmentManager({
   statementId,
   onAttachmentsChange,
+  onUploadComplete,
+  jenis,
   readOnly = false,
 }: AttachmentListProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -30,26 +35,44 @@ export function AttachmentManager({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [attachmentsLoaded, setAttachmentsLoaded] = useState(false);
 
   // Load attachments on mount
   React.useEffect(() => {
-    loadAttachments();
-  }, [statementId]);
+    let active = true;
 
-  async function loadAttachments() {
-    try {
-      const response = await fetch(
-        `/api/statements/${statementId}/attachments`,
-      );
-      if (response.ok) {
+    async function load() {
+      try {
+        const response = await fetch(
+          `/api/statements/${statementId}/attachments${jenis ? `?jenis=${jenis}` : ""}`,
+        );
         const data = await response.json();
-        setAttachments(data.data || []);
-        onAttachmentsChange?.(data.data || []);
+        if (!response.ok) {
+          throw new Error(data.error ?? "Gagal memuat daftar lampiran.");
+        }
+        if (active) {
+          setAttachments(data.data);
+          setLoadError(null);
+        }
+      } catch (cause) {
+        if (active) {
+          setLoadError(
+            cause instanceof Error
+              ? cause.message
+              : "Gagal memuat daftar lampiran.",
+          );
+        }
+      } finally {
+        if (active) setAttachmentsLoaded(true);
       }
-    } catch (err) {
-      console.error("Failed to load attachments:", err);
     }
-  }
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [statementId, jenis]);
 
   async function handleFileUpload(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -87,6 +110,7 @@ export function AttachmentManager({
       setSuccess(
         `File "${file.name}" berhasil diunggah (${formatFileSize(file.size)})`,
       );
+      onUploadComplete?.();
 
       // Reset file input
       if (fileInputRef.current) {
@@ -155,7 +179,9 @@ export function AttachmentManager({
   return (
     <div className="attachment-manager">
       <div className="attachment-section">
-        <h3>Lampiran</h3>
+        <h3>
+          {jenis === "DOKUMEN_TTD" ? "Dokumen bertanda tangan" : "Lampiran"}
+        </h3>
 
         {!readOnly && (
           <div
@@ -174,7 +200,11 @@ export function AttachmentManager({
               ref={fileInputRef}
               type="file"
               onChange={(e) => handleFileUpload(e.target.files)}
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.txt"
+              accept={
+                jenis === "DOKUMEN_TTD"
+                  ? ".pdf,.jpg,.jpeg,.png,.webp"
+                  : ".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.txt"
+              }
               disabled={isLoading}
               style={{ display: "none" }}
             />
@@ -202,7 +232,9 @@ export function AttachmentManager({
                 </button>
               </p>
               <p className="drop-hint">
-                Maksimal 10MB. Format: PDF, Word, Excel, Gambar, Teks
+                {jenis === "DOKUMEN_TTD"
+                  ? "PDF atau gambar, maksimal 10MB"
+                  : "Maksimal 10MB. Format: PDF, Word, Excel, Gambar, Teks"}
               </p>
             </div>
           </div>
@@ -211,7 +243,13 @@ export function AttachmentManager({
         {error && <div className="attachment-error">{error}</div>}
         {success && <div className="attachment-success">{success}</div>}
 
-        {attachments.length > 0 ? (
+        {loadError && (
+          <div className="attachment-error" role="alert">
+            {loadError}
+          </div>
+        )}
+        {!attachmentsLoaded && <p aria-live="polite">Memuat lampiran...</p>}
+        {attachmentsLoaded && !loadError && attachments.length > 0 ? (
           <div className="attachment-list">
             <table>
               <thead>
@@ -255,11 +293,11 @@ export function AttachmentManager({
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : attachmentsLoaded && !loadError ? (
           <div className="attachment-empty">
             {readOnly ? "Tidak ada lampiran." : "Belum ada lampiran diunggah."}
           </div>
-        )}
+        ) : null}
       </div>
 
       <style jsx>{`

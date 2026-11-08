@@ -1,9 +1,12 @@
-import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { getAttachmentAccessScope } from "@/lib/auth/scope";
+import {
+  removePrivateAttachment,
+  storePrivateAttachment,
+} from "@/lib/services/attachment-storage";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -39,11 +42,26 @@ export async function GET(_request: Request, { params }: RouteContext) {
     );
   }
 
-  // Get all attachments for this statement
+  const requestedType = new URL(_request.url).searchParams.get("jenis");
+  const attachmentType =
+    requestedType === "PENDUKUNG" || requestedType === "DOKUMEN_TTD"
+      ? requestedType
+      : undefined;
+  if (requestedType && !attachmentType) {
+    return NextResponse.json(
+      { error: "Jenis lampiran tidak valid" },
+      { status: 400 },
+    );
+  }
+
   const attachments = await prisma.attachment.findMany({
-    where: { statementId },
+    where: {
+      statementId,
+      ...(attachmentType ? { jenis: attachmentType } : {}),
+    },
     select: {
       id: true,
+      jenis: true,
       namaFile: true,
       tipeMime: true,
       ukuran: true,
@@ -105,22 +123,38 @@ export async function POST(request: Request, { params }: RouteContext) {
     );
   }
 
-  // Can only upload if statement is DRAFT or DIAJUKAN
-  if (statement.status !== "DRAFT" && statement.status !== "DIAJUKAN") {
+  const isSignedDocument = statement.status === "MENUNGGU_TANDA_TANGAN";
+  const canUploadSupporting =
+    statement.status === "DRAFT" || statement.status === "DIAJUKAN";
+  if (!isSignedDocument && !canUploadSupporting) {
     return NextResponse.json(
       {
         error:
-          "Hanya dapat mengunggah file untuk pernyataan dalam status draf atau diajukan",
+          "Unggahan hanya tersedia pada tahap yang sesuai dengan status pernyataan",
       },
       { status: 409 },
     );
   }
 
+  if (isSignedDocument) {
+    const existingSignedDocument = await prisma.attachment.findFirst({
+      where: { statementId, jenis: "DOKUMEN_TTD" },
+      select: { id: true },
+    });
+    if (existingSignedDocument) {
+      return NextResponse.json(
+        { error: "Dokumen bertanda tangan sudah diunggah" },
+        { status: 409 },
+      );
+    }
+  }
+
+  let savedStorageKey: string | null = null;
   try {
     const formData = await request.formData();
-    const file = formData.get("file") as File;
+    const file = formData.get("file");
 
-    if (!file) {
+    if (!(file instanceof File)) {
       return NextResponse.json(
         { error: "File tidak ditemukan dalam permintaan" },
         { status: 400 },
@@ -129,17 +163,19 @@ export async function POST(request: Request, { params }: RouteContext) {
 
     // Validate file
     const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    const ALLOWED_MIME_TYPES = [
-      "application/pdf",
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/vnd.ms-excel",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "text/plain",
-    ];
+    const ALLOWED_MIME_TYPES = isSignedDocument
+      ? ["application/pdf", "image/jpeg", "image/png", "image/webp"]
+      : [
+          "application/pdf",
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "application/vnd.ms-excel",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "text/plain",
+        ];
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
@@ -159,59 +195,80 @@ export async function POST(request: Request, { params }: RouteContext) {
       );
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), "public", "uploads", "statements");
-    await mkdir(uploadsDir, { recursive: true });
-
-    // Generate unique filename
-    const timestamp = Date.now();
-    const randomStr = Math.random().toString(36).substring(2, 8);
-    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const filename = `${timestamp}-${randomStr}-${sanitizedName}`;
-    const filePath = join(uploadsDir, filename);
-
-    // Save file
-    const buffer = await file.arrayBuffer();
-    await import("node:fs/promises").then((fs) =>
-      fs.writeFile(filePath, Buffer.from(buffer)),
+    const storedFile = Buffer.from(await file.arrayBuffer());
+    const storageKey = await storePrivateAttachment(
+      statementId,
+      file.type,
+      storedFile,
     );
+    savedStorageKey = storageKey;
 
-    // Store attachment record in database
-    const attachment = await prisma.attachment.create({
-      data: {
-        statementId,
-        namaFile: file.name,
-        tipeMime: file.type,
-        ukuran: file.size,
-        filePath: `/uploads/statements/${filename}`,
-        uploadedBy: user.id,
-      },
-      select: {
-        id: true,
-        namaFile: true,
-        tipeMime: true,
-        ukuran: true,
-        createdAt: true,
-      },
-    });
+    const attachment = await prisma.$transaction(async (transaction) => {
+      if (isSignedDocument) {
+        const changed = await transaction.statement.updateMany({
+          where: { id: statementId, status: "MENUNGGU_TANDA_TANGAN" },
+          data: { status: "MENUNGGU_VERIFIKASI" },
+        });
+        if (!changed.count) throw new Error("SIGNED_DOCUMENT_STAGE_CHANGED");
+      }
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        aksi: "UNGGAH_LAMPIRAN",
-        entitas: "Attachment",
-        entitasId: String(attachment.id),
-        dataSesudah: {
-          namaFile: file.name,
-          ukuran: file.size,
+      const created = await transaction.attachment.create({
+        data: {
           statementId,
+          jenis: isSignedDocument ? "DOKUMEN_TTD" : "PENDUKUNG",
+          namaFile: file.name,
+          tipeMime: file.type,
+          ukuran: file.size,
+          filePath: storageKey,
+          uploadedBy: user.id,
         },
-      },
+        select: {
+          id: true,
+          jenis: true,
+          namaFile: true,
+          tipeMime: true,
+          ukuran: true,
+          createdAt: true,
+        },
+      });
+      await transaction.auditLog.create({
+        data: {
+          userId: user.id,
+          aksi: isSignedDocument ? "UNGGAH_DOKUMEN_TTD" : "UNGGAH_LAMPIRAN",
+          entitas: "Attachment",
+          entitasId: String(created.id),
+          dataSesudah: {
+            namaFile: file.name,
+            ukuran: file.size,
+            statementId,
+            jenis: created.jenis,
+          },
+        },
+      });
+      return created;
     });
 
     return NextResponse.json({ data: attachment }, { status: 201 });
   } catch (error) {
+    if (savedStorageKey) {
+      try {
+        await removePrivateAttachment(savedStorageKey);
+      } catch (cleanupError) {
+        console.error("Private attachment cleanup failed:", cleanupError);
+      }
+    }
+    if (
+      error instanceof Error &&
+      error.message === "SIGNED_DOCUMENT_STAGE_CHANGED"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Tahap unggah telah berubah. Muat ulang halaman dan periksa status dokumen.",
+        },
+        { status: 409 },
+      );
+    }
     console.error("File upload error:", error);
     return NextResponse.json(
       { error: "Gagal mengunggah file" },

@@ -38,13 +38,16 @@ Buka [http://localhost:3000/login](http://localhost:3000/login):
 | `ADMIN_TI`    | `LOCAL-ADMIN-TI-01`    |
 | `SUPER_ADMIN` | `LOCAL-SUPER-ADMIN-01` |
 
+Pada komputer lokal, lampiran disimpan secara privat di `.private/uploads` jika `BLOB_READ_WRITE_TOKEN` tidak diatur. Ini berlaku untuk `npm run dev` maupun `npm run start`, dan folder tersebut tidak dimasukkan ke Git. Jangan gunakan penyimpanan disk lokal untuk deployment serverless; Vercel memerlukan `BLOB_READ_WRITE_TOKEN`.
+
 ## Skenario Alur
 
-1. Login sebagai pekerja, buat pernyataan, kirim, dan unduh PDF.
+1. Login sebagai pekerja, buat pernyataan, dan kirim untuk persetujuan.
 2. Logout lalu login sebagai atasan; setujui satu pengajuan dan tolak pengajuan lain dengan catatan.
-3. Login sebagai Admin TI; proses pengajuan yang sudah disetujui atasan dan cek arsip.
-4. Login sebagai Super Admin; cek antrean, direktori pegawai, dan audit. Pastikan tidak bisa memutuskan dokumennya sendiri.
-5. Uji batas akses dengan mencoba URL/API tanpa login dan memakai role yang tidak berwenang.
+3. Login sebagai Admin TI; setujui pengajuan tahap TI. Login kembali sebagai pekerja, unduh PDF, bubuhkan tanda tangan secara fisik, lalu unggah scan PDF/foto dari daftar pernyataan.
+4. Login kembali sebagai Admin TI; periksa scan dan pilih verifikasi untuk menyelesaikan arsip.
+5. Login sebagai Super Admin; cek antrean, direktori pegawai, dan audit. Pastikan tidak bisa memutuskan dokumennya sendiri.
+6. Uji batas akses dengan mencoba URL/API tanpa login dan memakai role yang tidak berwenang.
 
 Teks formulir lokal sengaja menyebut `CONTOH LOKAL` dan bukan naskah resmi. Sebelum deployment untuk KAI, ganti data pegawai, role/relasi, nomor versi, teks ketentuan, serta konfigurasi database hanya melalui sumber dan proses yang disetujui.
 

@@ -54,19 +54,21 @@ Password harus disimpan sebagai hash `scrypt` dengan format helper aplikasi di `
 
 1. Import repository GitHub ke Vercel dan pilih root repository.
 2. Tambahkan `DATABASE_URL` pada scope Preview dan Production, masing-masing menunjuk database terpisah.
-3. Deploy Preview terlebih dahulu.
-4. Pastikan build lulus dan route `/login` dapat dimuat.
-5. Setelah data akun disiapkan melalui provisioning yang berizin, uji login serta alur tiap role di Preview.
-6. Setelah Preview diterima, deploy ke Production dan lakukan smoke test terbatas dengan akun resmi.
+3. Buat Vercel Blob store privat, lalu tambahkan `BLOB_READ_WRITE_TOKEN` pada scope Preview dan Production. Upload akan gagal dengan aman jika token ini tidak tersedia.
+4. Deploy Preview terlebih dahulu.
+5. Pastikan build lulus dan route `/login` dapat dimuat.
+6. Setelah data akun disiapkan melalui provisioning yang berizin, uji login serta alur tiap role di Preview.
+7. Setelah Preview diterima, deploy ke Production dan lakukan smoke test terbatas dengan akun resmi.
 
 ## 6. Checklist Alur
 
 - Pekerja login dan mengirim pengajuan.
 - Atasan langsung melihat dan memutuskan pengajuan bawahan.
-- Admin TI melihat pengajuan tahap TI dan menyelesaikannya.
+- Admin TI menyetujui tahap TI; pekerja mengunduh PDF, menandatangani secara fisik, lalu mengunggah scan PDF/foto.
+- Admin TI memeriksa dokumen bertanda tangan dan memverifikasi arsip hingga status selesai.
 - Super Admin memproses tahap yang diizinkan, tanpa memutuskan dokumennya sendiri.
 - Penolakan wajib memiliki catatan.
-- Status akhir terlihat di arsip; PDF mengikuti snapshot dan metadata formulir terkait.
+- Status selesai dan ditolak terlihat di arsip; PDF mengikuti snapshot dan metadata formulir terkait.
 - Logout menghapus sesi; akses tanpa sesi ditolak.
 - PDF dan halaman hanya dapat diakses dalam cakupan role yang berhak.
 
@@ -81,3 +83,4 @@ PDF dari aplikasi harus ditinjau oleh pihak berwenang sebelum digunakan sebagai 
 | Tabel belum ada                    | Jalankan `npx prisma db push --schema prisma/schema.prisma` pada database yang benar.                            |
 | Login tidak berhasil               | Pastikan User dan Employee ada serta aktif, role tepat, NIPP cocok, dan password di-hash dengan format aplikasi. |
 | Pengajuan gagal                    | Pastikan BusinessArea pekerja aktif, relasi data sesuai, FormVersion aktif, dan alasan memenuhi validasi.        |
+| Unggah lampiran gagal di Vercel    | Pastikan Blob store privat tersedia dan `BLOB_READ_WRITE_TOKEN` sudah diatur pada scope deployment terkait.     |

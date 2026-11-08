@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AttachmentManager } from "@/components/attachment-manager";
 
 type ApprovalItem = {
   id: number;
@@ -91,6 +92,7 @@ export function ApprovalQueue({ items }: { items: ApprovalItem[] }) {
               <span>KETERANGAN PENGAJUAN</span>
               <p>{item.alasan}</p>
             </div>
+            <AttachmentManager statementId={item.id} readOnly />
             <label className="approval-note-label" htmlFor={`note-${item.id}`}>
               Catatan keputusan
               <span>Wajib diisi untuk penolakan</span>

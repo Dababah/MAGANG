@@ -19,12 +19,20 @@ enum StatementStatus {
   DIAJUKAN
   DISETUJUI_ATASAN
   DISETUJUI_TI
+  MENUNGGU_TANDA_TANGAN
+  MENUNGGU_VERIFIKASI
+  SELESAI
   DITOLAK
 }
 
 enum Decision {
   SETUJU
   TOLAK
+}
+
+enum AttachmentType {
+  PENDUKUNG
+  DOKUMEN_TTD
 }
 
 model BusinessArea {
@@ -130,6 +138,7 @@ model Statement {
 model Attachment {
   id          Int       @id @default(autoincrement())
   statementId Int       @map("statement_id")
+  jenis       AttachmentType @default(PENDUKUNG)
   namaFile    String    @map("nama_file") @db.VarChar(255)
   tipeMime    String    @map("tipe_mime") @db.VarChar(100)
   ukuran      Int

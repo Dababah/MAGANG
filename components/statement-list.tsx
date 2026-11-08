@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { formatJakartaDate } from "@/lib/jakarta-time";
+import { StatementActions } from "@/components/statement-actions";
 
 type StatementRecord = Prisma.StatementGetPayload<{
   include: {
@@ -19,15 +20,21 @@ const labels: Record<string, string> = {
   DIAJUKAN: "Menunggu persetujuan",
   DISETUJUI_ATASAN: "Disetujui atasan",
   DISETUJUI_TI: "Disetujui TI",
+  MENUNGGU_TANDA_TANGAN: "Menunggu tanda tangan",
+  MENUNGGU_VERIFIKASI: "Menunggu verifikasi arsip",
+  SELESAI: "Selesai",
   DITOLAK: "Ditolak",
 };
 
 const tones: Record<string, string> = {
-  DRAFT: "revision",
-  DIAJUKAN: "review",
-  DISETUJUI_ATASAN: "approved",
-  DISETUJUI_TI: "complete",
-  DITOLAK: "revision",
+  DRAFT: "red",
+  DIAJUKAN: "amber",
+  DISETUJUI_ATASAN: "blue",
+  DISETUJUI_TI: "blue",
+  MENUNGGU_TANDA_TANGAN: "blue",
+  MENUNGGU_VERIFIKASI: "amber",
+  SELESAI: "green",
+  DITOLAK: "red",
 };
 
 export function StatementList({
@@ -41,70 +48,48 @@ export function StatementList({
     return <div className="list-empty">{emptyMessage}</div>;
 
   return (
-    <div className="statement-table-wrap">
-      <table className="statement-table">
-        <thead>
-          <tr>
-            <th>PEKERJA</th>
-            <th>NOMOR REFERENSI</th>
-            <th>ALASAN</th>
-            <th>STATUS</th>
-            <th>TANGGAL DOKUMEN</th>
-            <th>AKSI</th>
-          </tr>
-        </thead>
-        <tbody>
-          {statements.map((statement) => (
-            <tr key={statement.id}>
-              <td>
-                <div className="employee-cell">
-                  <span className="employee-avatar">
-                    {statement.pekerja.namaLengkap
-                      .split(" ")
-                      .map((part) => part[0])
-                      .slice(0, 2)
-                      .join("")}
-                  </span>
-                  <span>
-                    <strong>{statement.pekerja.namaLengkap}</strong>
-                    <small>
-                      {statement.pekerja.businessArea.nama} ·{" "}
-                      {statement.pekerja.nipp}
-                    </small>
-                  </span>
-                </div>
-              </td>
-              <td className="ref-cell">
-                {statement.noRef ?? `DRAF-${statement.id}`}
-              </td>
-              <td className="statement-reason">{statement.alasan}</td>
-              <td>
-                <span className={`status-pill ${tones[statement.status]}`}>
-                  <i />
-                  {labels[statement.status]}
-                </span>
-              </td>
-              <td className="time-cell">
-                {formatJakartaDate(statement.tanggal, {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </td>
-              <td>
-                {statement.status !== "DRAFT" && statement.noRef && (
-                  <a
-                    className="statement-download"
-                    href={`/api/statements/${statement.id}/pdf`}
-                    aria-label={`Unduh PDF ${statement.noRef}`}>
-                    Unduh PDF
-                  </a>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="table-card">
+      <div className="table-head">
+        <span>Dokumen</span>
+        <span>Tanggal pengajuan</span>
+        <span>Status</span>
+        <span>Aksi</span>
+      </div>
+      {statements.map((statement) => (
+        <article className="table-row" key={statement.id}>
+          <div className="table-document">
+            <div className="document-icon" aria-hidden="true">
+              ▤
+            </div>
+            <div>
+              <strong>{statement.noRef ?? `DRAF-${statement.id}`}</strong>
+              <span>
+                {statement.pekerja.namaLengkap} ·{" "}
+                {statement.pekerja.businessArea.nama}
+              </span>
+              <span className="table-reason">{statement.alasan}</span>
+            </div>
+          </div>
+          <span className="table-date">
+            {formatJakartaDate(statement.tanggal, {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
+          </span>
+          <span className={`status ${tones[statement.status]}`}>
+            <i />
+            {labels[statement.status]}
+          </span>
+          <div className="table-actions">
+            <StatementActions
+              statementId={statement.id}
+              noRef={statement.noRef}
+              status={statement.status}
+            />
+          </div>
+        </article>
+      ))}
     </div>
   );
 }

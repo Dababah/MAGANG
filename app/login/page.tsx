@@ -1,8 +1,50 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+
+function Icon({
+  name,
+  size = 20,
+}: {
+  name: "user" | "shield" | "arrow";
+  size?: number;
+}) {
+  const paths = {
+    user: (
+      <>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21a8 8 0 0 1 16 0" />
+      </>
+    ),
+    shield: (
+      <>
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+        <path d="m9 12 2 2 4-4" />
+      </>
+    ),
+    arrow: (
+      <>
+        <path d="M5 12h14" />
+        <path d="m14 7 5 5-5 5" />
+      </>
+    ),
+  };
+  return (
+    <svg
+      aria-hidden="true"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round">
+      {paths[name]}
+    </svg>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,6 +52,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,97 +84,124 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="login-page">
-      <div className="login-visual">
-        <Link className="brand login-brand" href="/">
-          <span className="brand-mark">K</span>
-          <span className="brand-copy">
-            <strong>pernyataan</strong>
-            <small>KERETA API INDONESIA</small>
-          </span>
-        </Link>
-        <div className="login-visual-copy">
-          <div className="eyebrow">
-            <span /> RUANG KERJA DIGITAL
+    <main className="login-shell">
+      <section className="login-form-panel">
+        <div className="login-inner">
+          <div className="brand">
+            <img
+              src="/assets/kai-logo-official.png"
+              alt="PT Kereta Api Indonesia"
+            />
+            <span>
+              <strong>PORTAL</strong> PERNYATAAN
+            </span>
           </div>
-          <h1>
-            Setiap komitmen,
-            <br />
-            tercatat dengan baik.
-          </h1>
-          <p>
-            Kelola pernyataan pekerja dan persetujuan dengan alur yang tertib,
-            transparan, dan aman.
-          </p>
-          <div className="rail-illustration" aria-hidden="true">
-            <div className="rail-sun" />
-            <div className="rail-horizon" />
-            <div className="rail-line rail-line-one" />
-            <div className="rail-line rail-line-two" />
-            <div className="rail-track" />
-            <div className="rail-sleeper" />
-            <div className="rail-sleeper second" />
-            <div className="rail-sleeper third" />
-            <div className="rail-sleeper fourth" />
-            <div className="rail-sleeper fifth" />
-            <div className="rail-sleeper sixth" />
-          </div>
-        </div>
-        <div className="login-visual-footer">
-          <span>PT Kereta Api Indonesia (Persero)</span>
-          <span>
-            AKHLAK <i /> Melayani dengan sepenuh hati
-          </span>
-        </div>
-      </div>
-      <section className="login-form-side">
-        <form className="login-form" onSubmit={handleSubmit}>
-          <span className="login-kicker">SELAMAT DATANG KEMBALI</span>
-          <h2>Masuk ke akun Anda</h2>
-          <p className="login-intro">
-            Gunakan NIPP dan kata sandi akun pekerja KAI Anda.
-          </p>
-          <label htmlFor="nipp">NIPP</label>
-          <input
-            autoComplete="username"
-            id="nipp"
-            inputMode="numeric"
-            onChange={(event) => setNipp(event.target.value)}
-            placeholder="Masukkan NIPP"
-            required
-            value={nipp}
-          />
-          <div className="password-label">
-            <label htmlFor="password">Kata sandi</label>
-            <a href="mailto:admin@kai.id?subject=Pemulihan%20akun">
-              Lupa kata sandi?
-            </a>
-          </div>
-          <input
-            autoComplete="current-password"
-            id="password"
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Masukkan kata sandi"
-            required
-            type="password"
-            value={password}
-          />
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
+          <div className="login-copy">
+            <div className="eyebrow">
+              <span /> PORTAL INTERNAL PEKERJA
+            </div>
+            <h1>Selamat datang kembali</h1>
+            <p>
+              Kelola pernyataan kerja Anda secara aman, cepat, dan terintegrasi.
             </p>
-          )}
-          <button className="login-submit" disabled={loading} type="submit">
-            {loading ? "Memeriksa akun..." : "Masuk"}
-            <span aria-hidden="true">→</span>
-          </button>
-          <div className="login-security">
-            <span>●</span> Koneksi aman dan terenkripsi
           </div>
-        </form>
-        <div className="login-help">
-          Mengalami kendala?{" "}
-          <a href="mailto:admin@kai.id">Hubungi administrator wilayah</a>
+          <form onSubmit={handleSubmit}>
+            <label htmlFor="nipp">NIPP</label>
+            <div className="field">
+              <Icon name="user" size={19} />
+              <input
+                autoComplete="username"
+                id="nipp"
+                inputMode="numeric"
+                onChange={(event) => setNipp(event.target.value)}
+                placeholder="Masukkan NIPP Anda"
+                required
+                value={nipp}
+              />
+            </div>
+            <div className="label-row">
+              <label htmlFor="password">Kata sandi</label>
+              <a
+                className="text-button"
+                href="mailto:admin@kai.id?subject=Pemulihan%20akun">
+                Lupa kata sandi?
+              </a>
+            </div>
+            <div className="field">
+              <Icon name="shield" size={19} />
+              <input
+                autoComplete="current-password"
+                id="password"
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Masukkan kata sandi"
+                required
+                type={showPassword ? "text" : "password"}
+                value={password}
+              />
+              <button
+                type="button"
+                className="show-password"
+                onClick={() => setShowPassword((value) => !value)}>
+                {showPassword ? "Sembunyikan" : "Lihat"}
+              </button>
+            </div>
+            {error && (
+              <div className="form-error" role="alert">
+                {error}
+              </div>
+            )}
+            <button
+              className="primary-button login-button"
+              disabled={loading}
+              type="submit">
+              {loading ? "Memproses..." : "Masuk ke portal"}{" "}
+              <Icon name="arrow" size={19} />
+            </button>
+          </form>
+          <div className="secure-note">
+            <Icon name="shield" size={16} /> Dilindungi dengan sistem keamanan
+            internal PT KAI
+          </div>
+        </div>
+        <footer>
+          © 2026 PT Kereta Api Indonesia (Persero) · Internal Use Only
+        </footer>
+      </section>
+      <section className="login-art" aria-hidden="true">
+        <div className="art-grid" />
+        <div className="speed-line line-one" />
+        <div className="speed-line line-two" />
+        <div className="orb orb-one" />
+        <div className="orb orb-two" />
+        <div className="logo-3d">
+          <div className="logo-depth depth-3">
+            <img src="/assets/kai-logo-official.png" alt="" />
+          </div>
+          <div className="logo-depth depth-2">
+            <img src="/assets/kai-logo-official.png" alt="" />
+          </div>
+          <div className="logo-depth depth-1">
+            <img src="/assets/kai-logo-official.png" alt="" />
+          </div>
+          <div className="logo-face">
+            <img src="/assets/kai-logo-official.png" alt="" />
+          </div>
+        </div>
+        <div className="art-message">
+          <span className="art-index">01 / DIGITAL WORKSPACE</span>
+          <h2>
+            Melayani dengan
+            <br />
+            <em>integritas.</em>
+          </h2>
+          <p>
+            Satu portal terpadu untuk proses pengajuan yang transparan dan
+            akuntabel.
+          </p>
+        </div>
+        <div className="rail-track">
+          <i />
+          <i />
         </div>
       </section>
     </main>

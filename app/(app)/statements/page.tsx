@@ -1,28 +1,48 @@
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { getStatementVisibilityScope } from "@/lib/auth/scope";
+import { statementStatusSchema } from "@/lib/validators/statement";
 import {
   StatementList,
   PageHeading,
   BackToDashboard,
 } from "@/components/statement-list";
+import Link from "next/link";
 
 export const instant = false;
 
-export default async function StatementsPage() {
+type SearchParams = Promise<{ search?: string; status?: string }>;
+
+export default async function StatementsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const user = await requireUser();
-  const scope =
-    user.role === "PEKERJA"
-      ? { pekerjaId: user.employeeId }
-      : user.role === "ATASAN"
-        ? {
-            OR: [
-              { pekerjaId: user.employeeId },
-              { pekerja: { atasanId: user.employeeId } },
-            ],
-          }
-        : {};
+  const params = await searchParams;
+  const search = params.search?.trim() ?? "";
+  const parsedStatus = params.status
+    ? statementStatusSchema.safeParse(params.status)
+    : null;
+  const status = parsedStatus?.success ? parsedStatus.data : undefined;
   const statements = await prisma.statement.findMany({
-    where: scope,
+    where: {
+      AND: [
+        getStatementVisibilityScope(user),
+        ...(status ? [{ status }] : []),
+        ...(search
+          ? [
+              {
+                OR: [
+                  { noRef: { contains: search } },
+                  { alasan: { contains: search } },
+                  { pekerja: { namaLengkap: { contains: search } } },
+                ],
+              },
+            ]
+          : []),
+      ],
+    },
     include: {
       pekerja: {
         select: {
@@ -51,11 +71,30 @@ export default async function StatementsPage() {
           ) : undefined
         }
       />
-      <section className="data-panel">
-        <div className="data-panel-top">
-          <strong>Semua pengajuan</strong>
-          <span>{statements.length} pernyataan</span>
-        </div>
+      <section className="page-section">
+        <form className="filter-bar" action="/statements">
+          <label className="filter-search">
+            <span className="sr-only">Cari nomor atau keterangan</span>
+            <input
+              name="search"
+              defaultValue={search}
+              placeholder="Cari nomor atau judul dokumen..."
+            />
+          </label>
+          <select
+            name="status"
+            defaultValue={status ?? ""}
+            aria-label="Filter status">
+            <option value="">Semua status</option>
+            {statementStatusSchema.options.map((value) => (
+              <option value={value} key={value}>
+                {value.replaceAll("_", " ")}
+              </option>
+            ))}
+          </select>
+          <button type="submit">Cari</button>
+          {(search || status) && <Link href="/statements">Hapus filter</Link>}
+        </form>
         <StatementList
           statements={statements}
           emptyMessage="Belum ada pernyataan yang tercatat."

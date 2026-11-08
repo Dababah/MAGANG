@@ -1,9 +1,8 @@
-import { join } from "node:path";
-import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { getAttachmentAccessScope } from "@/lib/auth/scope";
+import { readPrivateAttachment } from "@/lib/services/attachment-storage";
 
 type RouteContext = { params: Promise<{ id: string; attachmentId: string }> };
 
@@ -59,9 +58,13 @@ export async function GET(_request: Request, { params }: RouteContext) {
   }
 
   try {
-    // Read file from filesystem
-    const filePath = join(process.cwd(), "public", attachment.filePath);
-    const buffer = await readFile(filePath);
+    const body = await readPrivateAttachment(attachment.filePath);
+    if (!body) {
+      return NextResponse.json(
+        { error: "File lampiran tidak ditemukan di penyimpanan privat" },
+        { status: 404 },
+      );
+    }
 
     // Log audit
     await prisma.auditLog.create({
@@ -73,11 +76,14 @@ export async function GET(_request: Request, { params }: RouteContext) {
       },
     });
 
-    return new Response(buffer, {
+    const safeFilename = attachment.namaFile.replace(/[\r\n"\\]/g, "_");
+    const encodedFilename = encodeURIComponent(attachment.namaFile);
+    return new Response(body, {
       headers: {
         "Content-Type": attachment.tipeMime,
-        "Content-Disposition": `attachment; filename="${attachment.namaFile}"`,
+        "Content-Disposition": `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodedFilename}`,
         "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (error) {

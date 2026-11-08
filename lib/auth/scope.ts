@@ -11,8 +11,8 @@ export type UserSession = NonNullable<
  * Rules:
  * - PEKERJA: Only own statements
  * - ATASAN: Own statements + direct subordinates' statements
- * - ADMIN_TI: All statements in DISETUJUI_ATASAN status only
- * - SUPER_ADMIN: All statements in DIAJUKAN or DISETUJUI_ATASAN status only
+ * - ADMIN_TI: Statements in the IT review and signed-document workflow
+ * - SUPER_ADMIN: All active workflow stages
  */
 export function getStatementVisibilityScope(
   user: UserSession,
@@ -31,11 +31,30 @@ export function getStatementVisibilityScope(
   }
 
   if (user.role === "ADMIN_TI") {
-    return { status: "DISETUJUI_ATASAN" };
+    return {
+      status: {
+        in: [
+          "DISETUJUI_ATASAN",
+          "DISETUJUI_TI",
+          "MENUNGGU_TANDA_TANGAN",
+          "MENUNGGU_VERIFIKASI",
+        ],
+      },
+    };
   }
 
   if (user.role === "SUPER_ADMIN") {
-    return { status: { in: ["DIAJUKAN", "DISETUJUI_ATASAN"] } };
+    return {
+      status: {
+        in: [
+          "DIAJUKAN",
+          "DISETUJUI_ATASAN",
+          "DISETUJUI_TI",
+          "MENUNGGU_TANDA_TANGAN",
+          "MENUNGGU_VERIFIKASI",
+        ],
+      },
+    };
   }
 
   // Fallback: return empty set (no access)
@@ -87,9 +106,23 @@ export function getApprovalQueueScope(
   return { id: -1 };
 }
 
+export function getVerificationQueueScope(
+  user: UserSession,
+): Prisma.StatementWhereInput {
+  if (user.role !== "ADMIN_TI" && user.role !== "SUPER_ADMIN") {
+    return { id: -1 };
+  }
+
+  return {
+    status: "MENUNGGU_VERIFIKASI",
+    pekerjaId: { not: user.employeeId },
+    attachments: { some: { jenis: "DOKUMEN_TTD" } },
+  };
+}
+
 /**
  * Helper function to determine archive scope based on user role.
- * Archive shows completed (DISETUJUI_TI or DITOLAK) statements.
+ * Archive shows completed or rejected statements, including legacy approvals.
  *
  * Rules:
  * - PEKERJA: Only own archived statements
@@ -99,7 +132,7 @@ export function getApprovalQueueScope(
  */
 export function getArchiveScope(user: UserSession): Prisma.StatementWhereInput {
   const baseStatus = {
-    status: { in: ["DISETUJUI_TI", "DITOLAK"] },
+    status: { in: ["DISETUJUI_TI", "SELESAI", "DITOLAK"] },
   } as Prisma.StatementWhereInput;
 
   if (user.role === "PEKERJA") {
@@ -124,23 +157,24 @@ export function getArchiveScope(user: UserSession): Prisma.StatementWhereInput {
 }
 
 /**
- * Helper function to determine PDF access scope.
- * Same rules as visibility scope - if you can see it, you can download the PDF.
+ * PDF and attachment access follows the active lists and archive visibility.
  */
 export function getPdfAccessScope(
   user: UserSession,
 ): Prisma.StatementWhereInput {
-  return getStatementVisibilityScope(user);
+  return {
+    OR: [getStatementVisibilityScope(user), getArchiveScope(user)],
+  };
 }
 
 /**
  * Helper function to determine attachment access scope.
- * Same as PDF access - if you can see the statement, you can access attachments.
+ * Same as PDF access - visible active and archived statements are accessible.
  */
 export function getAttachmentAccessScope(
   user: UserSession,
 ): Prisma.StatementWhereInput {
-  return getStatementVisibilityScope(user);
+  return getPdfAccessScope(user);
 }
 
 /**
@@ -150,7 +184,7 @@ export function getAttachmentAccessScope(
 export async function canUserApproveStatement(
   user: UserSession,
   statementId: number,
-  prisma: any,
+  prisma: Pick<Prisma.TransactionClient, "statement">,
 ): Promise<{
   canApprove: boolean;
   stage?: number;

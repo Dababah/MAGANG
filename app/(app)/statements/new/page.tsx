@@ -44,6 +44,12 @@ export default async function NewStatementPage() {
           ? {
               nomorDokumen: formVersion.nomorDokumen,
               versi: formVersion.versi,
+              tanggalTerbit: new Intl.DateTimeFormat("id-ID", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+                timeZone: "Asia/Jakarta",
+              }).format(formVersion.tanggalTerbit),
               teksKetentuan: formVersion.teksKetentuan,
               id: formVersion.id,
             }
